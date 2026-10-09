@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { GuidedChat } from '@/components/GuidedChat';
 import { ImportPreview } from '@/components/ImportPreview';
 import { Screen } from '@/components/Screen';
 import { today } from '@/domain/dates';
@@ -15,12 +16,12 @@ async function pickTextFiles() {
 }
 
 /**
- * 입력 (I-04, X-20): 학원 카톡 대화 파일 가져오기 / 알림톡·문자 붙여넣기.
- * 채팅 입력·엑셀은 다음 단계 (Sprint 3-2, 3-3).
+ * 입력 (X-01): 안내형 채팅 (I-21) / 알림톡·문자 붙여넣기 (I-04) / 학원 카톡 대화 파일 가져오기 (X-20).
+ * 엑셀은 더보기 → 엑셀 동기화.
  */
 export default function InputScreen() {
   const { repo, isChild } = useRepository();
-  const [mode, setMode] = useState<'paste' | 'file'>('paste');
+  const [mode, setMode] = useState<'chat' | 'paste' | 'file'>('chat');
   const [text, setText] = useState('');
   const [items, setItems] = useState<ParsedItem[] | null>(null);
   const [files, setFiles] = useState<string[]>([]);
@@ -40,20 +41,33 @@ export default function InputScreen() {
     setItems(unique);
   };
 
+  const tabs = (
+    <SegmentedButtons
+      value={mode}
+      onValueChange={(v) => {
+        setMode(v as 'chat' | 'paste' | 'file');
+        setItems(null);
+      }}
+      buttons={[
+        { value: 'chat', label: '채팅', icon: 'chat-outline' },
+        { value: 'paste', label: '붙여넣기', icon: 'content-paste' },
+        { value: 'file', label: '카톡 파일', icon: 'file-document-multiple-outline' },
+      ]}
+    />
+  );
+
+  if (mode === 'chat')
+    return (
+      <View style={styles.chat}>
+        {tabs}
+        <GuidedChat />
+      </View>
+    );
+
   return (
     <View style={styles.fill}>
       <Screen wide>
-        <SegmentedButtons
-          value={mode}
-          onValueChange={(v) => {
-            setMode(v as 'paste' | 'file');
-            setItems(null);
-          }}
-          buttons={[
-            { value: 'paste', label: '메시지 붙여넣기', icon: 'content-paste' },
-            { value: 'file', label: '카톡 대화 파일', icon: 'file-document-multiple-outline' },
-          ]}
-        />
+        {tabs}
 
         {mode === 'paste' ? (
           <Card mode="outlined" style={styles.card}>
@@ -123,6 +137,7 @@ export default function InputScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  chat: { flex: 1, padding: 16, gap: 8, width: '100%', maxWidth: 820, alignSelf: 'center' },
   card: { marginVertical: 12 },
   gap: { gap: 8 },
   paste: { minHeight: 160 },
