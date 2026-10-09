@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen';
 import { FetchGitHubApi, GitHubApiError } from '@/data/github/GitHubApi';
 import { cleanToken, looksLikeToken } from '@/data/github/token';
 import type { StoredDoc } from '@/data/repository';
+import { BUILD_VERSION } from '@/lib/config';
 import { firebaseConfigFromEnv } from '@/lib/firebase';
 import { useRepository } from '@/state/RepositoryContext';
 import type { DeviceSettings, StorageMode } from '@/state/settings';
@@ -134,7 +135,9 @@ export default function StorageSettingsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <HelperText type="info">토큰은 이 기기에만 저장되고 다시 표시되지 않습니다. 채팅·메신저로 보내지 마세요.</HelperText>
+              <HelperText type="info">
+                토큰은 이 기기에만 저장되고 다시 표시되지 않습니다. 채팅·메신저로 보내지 마세요. (앱 버전 {BUILD_VERSION})
+              </HelperText>
               <Button mode="outlined" icon="lan-connect" onPress={checkGitHub}>
                 연결 확인
               </Button>

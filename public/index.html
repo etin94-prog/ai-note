@@ -34,8 +34,25 @@
     <!-- 서비스워커: 배포 빌드에서만 (오프라인 재실행, Q-16) -->
     <script>
       if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+        // 새 버전 서비스워커가 적용되면 한 번 새로고침해 새 화면을 띄운다
+        var hadController = !!navigator.serviceWorker.controller;
+        var reloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!hadController || reloaded) return;
+          reloaded = true;
+          location.reload();
+        });
         window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/ai-note/sw.js', { scope: '/ai-note/' }).catch(function () {});
+          navigator.serviceWorker
+            .register('/ai-note/sw.js', { scope: '/ai-note/' })
+            .then(function (reg) {
+              reg.update();
+              // 앱을 다시 볼 때마다 새 버전 확인 (홈 화면 앱은 오래 켜져 있을 수 있음)
+              document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') reg.update();
+              });
+            })
+            .catch(function () {});
         });
       }
     </script>

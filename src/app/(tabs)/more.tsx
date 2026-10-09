@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { List } from 'react-native-paper';
 
 import { Screen } from '@/components/Screen';
+import { BUILD_VERSION } from '@/lib/config';
 
 export default function MoreScreen() {
   return (
@@ -22,6 +23,7 @@ export default function MoreScreen() {
         <List.Item title="엑셀 동기화 · 백업" left={(p) => <List.Icon {...p} icon="microsoft-excel" />} />
         <List.Item title="가족 구성원 · 가입 승인" left={(p) => <List.Icon {...p} icon="account-group-outline" />} />
       </List.Section>
+      <List.Item title="앱 버전" description={BUILD_VERSION} left={(p) => <List.Icon {...p} icon="information-outline" />} />
     </Screen>
   );
 }

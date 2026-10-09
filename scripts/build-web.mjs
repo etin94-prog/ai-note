@@ -22,8 +22,19 @@ const { count, size, warnings } = await generateSW({
   globIgnores: ['404.html'],
   swDest: `${DIST}/sw.js`,
   modifyURLPrefix: { '': `${BASE}/` },
-  navigateFallback: `${BASE}/index.html`,
-  navigateFallbackAllowlist: [new RegExp(`^${BASE}/`)],
+  // 화면(HTML)은 네트워크 우선 → 온라인이면 항상 새 버전, 오프라인이면 저장된 index.html.
+  // (캐시 우선으로 두면 배포해도 이전 버전이 계속 열림 — 2026-10-09 실제 발생)
+  runtimeCaching: [
+    {
+      urlPattern: ({ request }) => request.mode === 'navigate',
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'pages',
+        networkTimeoutSeconds: 4,
+        precacheFallback: { fallbackURL: `${BASE}/index.html` },
+      },
+    },
+  ],
   maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
   cleanupOutdatedCaches: true,
   clientsClaim: true,
