@@ -6,6 +6,7 @@ import { ulid } from 'ulid';
 
 import { ChipSelect, TimeField } from '@/components/FormFields';
 import { Screen } from '@/components/Screen';
+import { goBack } from '@/lib/nav';
 import { formatDate } from '@/domain/dates';
 import { type EditScope, planTimeChange } from '@/domain/editScope';
 import type { ExceptionStatus, OccurrenceException, ScheduleEvent } from '@/domain/types';
@@ -81,7 +82,7 @@ export default function OccurrenceScreen() {
     }
     setEditTime(false);
     // "이후 모두/전체" 는 회차 키가 바뀔 수 있어 목록으로 돌아감
-    if (occ.source === 'event' && scope !== 'this') router.back();
+    if (occ.source === 'event' && scope !== 'this') goBack('/schedule');
   }
 
   if (!occ) {

@@ -29,6 +29,8 @@ export function getFirebase() {
     app = getApps()[0] ?? initializeApp(cfg);
     // 오프라인 조회·입력 (X-09). 여러 탭에서 열어도 캐시 공유.
     db = initializeFirestore(app, {
+      // 선택 항목을 비워 둔 값(undefined)은 저장하지 않음
+      ignoreUndefinedProperties: true,
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
   }

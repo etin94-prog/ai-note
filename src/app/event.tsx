@@ -7,6 +7,7 @@ import { ulid } from 'ulid';
 import { ChipSelect, DateField, Label, TimeField, WeekdayChips } from '@/components/FormFields';
 import { MemberMultiSelect } from '@/components/MemberChips';
 import { Screen } from '@/components/Screen';
+import { goBack } from '@/lib/nav';
 import type { StoredDoc } from '@/data/repository';
 import { today, weekdayOf } from '@/domain/dates';
 import { EVENT_KIND_LABELS, type EventKind, type MemberId, type Place, type ScheduleEvent, type Weekday } from '@/domain/types';
@@ -101,13 +102,13 @@ export default function EventScreen() {
         ? 'ok'
         : 'conflict';
     if (r !== 'ok') return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
-    router.back();
+    goBack('/schedule');
   }
 
   async function remove() {
     if (!repo || !existing) return;
     await repo.remove('events', existing.id, existing.version, writeContext(`일정 삭제: ${existing.title}`));
-    router.back();
+    goBack('/schedule');
   }
 
   return (

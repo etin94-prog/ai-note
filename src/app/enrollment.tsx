@@ -6,10 +6,15 @@ import { ulid } from 'ulid';
 
 import { ChipSelect, DateField, Label, TimeField, WeekdayChips } from '@/components/FormFields';
 import { Screen } from '@/components/Screen';
+import { goBack } from '@/lib/nav';
 import type { StoredDoc } from '@/data/repository';
 import { today } from '@/domain/dates';
 import { type Academy, CHILDREN, type Enrollment, type MemberId, type TimeSlot, type Weekday } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
+import { useCollection } from '@/state/useCollection';
+import { MoneyInput } from '@/components/MoneyInput';
+import type { Op } from '@/data/repository';
+import { type EnrollmentCost, type PayCycle, type PayTiming, won } from '@/domain/money';
 
 const STATUS = [
   { value: 'active' as const, label: '수강 중' },
@@ -20,7 +25,15 @@ const STATUS = [
 /** 수강 등록 (A-02, A-04, A-05): 아이 + 요일·시간(여러 개) → 주간 시간표 자동 생성 (S-02) */
 export default function EnrollmentScreen() {
   const { id, academyId } = useLocalSearchParams<{ id?: string; academyId: string }>();
-  const { repo, writeContext } = useRepository();
+  const { repo, writeContext, isChild } = useRepository();
+  const costs = useCollection<EnrollmentCost>('enrollmentCosts');
+  const myCosts = costs.docs.filter((c) => c.enrollmentId === id).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1));
+  // 비용 조건 (A-03, A-08) — 부모만
+  const [costAmount, setCostAmount] = useState(0);
+  const [payDay, setPayDay] = useState('5');
+  const [timing, setTiming] = useState<PayTiming>('prepaid');
+  const [cycle, setCycle] = useState<PayCycle>('monthly');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
   const [academy, setAcademy] = useState<StoredDoc<Academy> | null>(null);
   const [existing, setExisting] = useState<StoredDoc<Enrollment> | null>(null);
   const [childId, setChildId] = useState<MemberId>('son');
@@ -53,6 +66,15 @@ export default function EnrollmentScreen() {
     });
   }, [repo, id, academyId]);
 
+  useEffect(() => {
+    const c = myCosts[0];
+    if (!c) return;
+    setCostAmount(c.amount);
+    setPayDay(String(c.payDay));
+    setTiming(c.timing);
+    setCycle(c.cycle);
+  }, [myCosts[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const setGroup = (i: number, patch: Partial<(typeof groups)[number]>) =>
     setGroups((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
@@ -70,14 +92,30 @@ export default function EnrollmentScreen() {
       endDate,
       status,
     };
-    const ctx = writeContext(`수강 ${existing ? '수정' : '등록'}: ${academy.name}`);
-    const r = existing
-      ? await repo.update('enrollments', existing.id, data as unknown as Record<string, unknown>, existing.version, ctx)
-      : (await repo.create('enrollments', ulid(), data as unknown as Record<string, unknown>, ctx)) === 'created'
-        ? 'ok'
-        : 'conflict';
-    if (r !== 'ok') return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
-    router.back();
+    const enrollmentId = existing?.id ?? ulid();
+    const ops: Op[] = [
+      existing
+        ? { type: 'update', col: 'enrollments', id: enrollmentId, patch: data as unknown as Record<string, unknown>, expectVersion: existing.version }
+        : { type: 'create', col: 'enrollments', id: enrollmentId, data: data as unknown as Record<string, unknown> },
+    ];
+    // 비용 조건: 값이 바뀌었을 때만 적용 시작일 기준으로 새로 저장 (이미 만든 청구 금액은 그대로, A-08)
+    const day = Math.min(31, Math.max(1, Number(payDay) || 1));
+    const cur = myCosts[0];
+    const changed = !cur || cur.amount !== costAmount || cur.payDay !== day || cur.timing !== timing || cur.cycle !== cycle;
+    if (!isChild && costAmount > 0 && changed) {
+      const from = effectiveFrom || (cur ? `${today().slice(0, 7)}-01` : startDate);
+      const costId = `${enrollmentId}:${from}`;
+      const cost: EnrollmentCost = { enrollmentId, effectiveFrom: from, amount: costAmount, payDay: day, timing, cycle };
+      const same = myCosts.find((c) => c.id === costId);
+      ops.push(
+        same
+          ? { type: 'update', col: 'enrollmentCosts', id: costId, patch: cost as unknown as Record<string, unknown>, expectVersion: same.version }
+          : { type: 'create', col: 'enrollmentCosts', id: costId, data: cost as unknown as Record<string, unknown> },
+      );
+    }
+    const r = await repo.applyBatch(ops, writeContext(`수강 ${existing ? '수정' : '등록'}: ${academy.name}`));
+    if (!r.ok) return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
+    goBack('/academies');
   }
 
   return (
@@ -118,6 +156,48 @@ export default function EnrollmentScreen() {
         </>
       )}
 
+      {!isChild && (
+        <Card mode="outlined" style={styles.costCard}>
+          <Card.Title title="수강료 (부모만)" subtitle="입력하면 매달 청구가 자동으로 만들어집니다" titleVariant="titleMedium" />
+          <Card.Content style={styles.gapCol}>
+            <MoneyInput label="월 수강료" value={costAmount} onChange={setCostAmount} />
+            <ChipSelect
+              options={[
+                { value: 'monthly' as PayCycle, label: '매월 자동 청구' },
+                { value: 'manual' as PayCycle, label: '직접 입력 (회차제·특강)' },
+              ]}
+              value={cycle}
+              onChange={setCycle}
+            />
+            {cycle === 'monthly' && (
+              <>
+                <View style={styles.row}>
+                  <TextInput mode="outlined" dense label="결제일 (매월 N일)" value={payDay} onChangeText={setPayDay} keyboardType="number-pad" style={styles.flex} />
+                  <View style={styles.flex}>
+                    <ChipSelect
+                      options={[
+                        { value: 'prepaid' as PayTiming, label: '선납' },
+                        { value: 'postpaid' as PayTiming, label: '후납' },
+                      ]}
+                      value={timing}
+                      onChange={setTiming}
+                    />
+                  </View>
+                </View>
+                {existing && myCosts.length > 0 && (
+                  <DateField label="변경 적용 시작일 (비우면 이번 달 1일)" value={effectiveFrom} onChange={setEffectiveFrom} />
+                )}
+              </>
+            )}
+            {myCosts.length > 0 && (
+              <Text variant="bodySmall" style={styles.hint}>
+                이력: {myCosts.map((c) => `${c.effectiveFrom}부터 ${won(c.amount)}(${c.payDay}일)`).join(' · ')}
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
+      )}
+
       {error && <HelperText type="error">{error}</HelperText>}
       <Button mode="contained" onPress={save} style={styles.save} disabled={!academy}>
         저장
@@ -131,4 +211,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   hint: { opacity: 0.7, marginTop: 4 },
   save: { marginTop: 16 },
+  costCard: { marginTop: 16 },
+  gapCol: { gap: 8 },
+  flex: { flex: 1 },
 });

@@ -20,6 +20,8 @@ export default function RootLayout() {
             <Stack.Screen name="occurrence" options={{ title: '일정' }} />
             <Stack.Screen name="places" options={{ title: '장소' }} />
             <Stack.Screen name="holidays" options={{ title: '방학·휴일' }} />
+            <Stack.Screen name="bill" options={{ title: '청구' }} />
+            <Stack.Screen name="expense" options={{ title: '기타 지출' }} />
           </Stack>
         </RepositoryProvider>
       </PaperProvider>

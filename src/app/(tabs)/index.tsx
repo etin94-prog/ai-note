@@ -7,6 +7,7 @@ import { LiveStatusCard } from '@/components/LiveStatusCard';
 import { OccurrenceRow } from '@/components/OccurrenceRow';
 import { Screen } from '@/components/Screen';
 import { SyncIndicator } from '@/components/SyncIndicator';
+import { TodoCard } from '@/components/TodoCard';
 import { formatDate, nowLocal, today } from '@/domain/dates';
 import { findConflicts, visibleFor } from '@/domain/schedule';
 import { type MemberId, MEMBERS } from '@/domain/types';
@@ -44,6 +45,7 @@ export default function HomeScreen() {
         </Card>
       ) : (
         <>
+          {!isChild && <TodoCard />}
           <Text variant="titleMedium" style={{ marginBottom: 8 }}>
             지금 · {formatDate(d)} {nowLocal(now).slice(11)}
           </Text>

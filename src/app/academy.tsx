@@ -6,6 +6,7 @@ import { ulid } from 'ulid';
 
 import { ChipSelect, Label } from '@/components/FormFields';
 import { Screen } from '@/components/Screen';
+import { goBack } from '@/lib/nav';
 import type { StoredDoc } from '@/data/repository';
 import {
   type Academy,
@@ -106,7 +107,7 @@ export default function AcademyScreen() {
     const r = await repo.applyBatch(ops, writeContext(`학원 ${academy ? '수정' : '추가'}: ${data.name}`));
     if (!r.ok) return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
     if (!academy) router.replace({ pathname: '/academy', params: { id: academyId } });
-    else router.back();
+    else goBack('/academies');
   }
 
   const mine = academy ? enrollments.docs.filter((e) => e.academyId === academy.id) : [];
