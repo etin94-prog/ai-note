@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Collection, StoredDoc } from '@/data/repository';
 import { addDays } from '@/domain/dates';
 import { expandOccurrences, type Occurrence } from '@/domain/schedule';
-import type { Academy, Enrollment, OccurrenceException, ScheduleEvent } from '@/domain/types';
+import type { Academy, Enrollment, Holiday, OccurrenceException, ScheduleEvent } from '@/domain/types';
 
 import { useRepository } from './RepositoryContext';
 
@@ -35,6 +35,7 @@ export function useOccurrences(from: string, to: string) {
   const enrollments = useCollection<Enrollment>('enrollments');
   const events = useCollection<ScheduleEvent>('events');
   const exceptions = useCollection<OccurrenceException>('exceptions');
+  const holidays = useCollection<Holiday>('holidays');
 
   const occurrences: Occurrence[] = useMemo(
     () =>
@@ -45,11 +46,12 @@ export function useOccurrences(from: string, to: string) {
         enrollments: asInput(enrollments.docs),
         events: asInput(events.docs),
         exceptions: asInput(exceptions.docs),
+        holidays: asInput(holidays.docs),
       }),
-    [from, to, academies.docs, enrollments.docs, events.docs, exceptions.docs],
+    [from, to, academies.docs, enrollments.docs, events.docs, exceptions.docs, holidays.docs],
   );
-  const loaded = academies.loaded && enrollments.loaded && events.loaded && exceptions.loaded;
-  return { occurrences, loaded, exceptions: exceptions.docs };
+  const loaded = academies.loaded && enrollments.loaded && events.loaded && exceptions.loaded && holidays.loaded;
+  return { occurrences, loaded, exceptions: exceptions.docs, events: events.docs };
 }
 
 /** 1분마다 바뀌는 현재 시각 (실시간 상태 카드용) */

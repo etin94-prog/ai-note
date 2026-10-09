@@ -18,6 +18,8 @@ export default function RootLayout() {
             <Stack.Screen name="enrollment" options={{ title: '수강' }} />
             <Stack.Screen name="event" options={{ title: '일정' }} />
             <Stack.Screen name="occurrence" options={{ title: '일정' }} />
+            <Stack.Screen name="places" options={{ title: '장소' }} />
+            <Stack.Screen name="holidays" options={{ title: '방학·휴일' }} />
           </Stack>
         </RepositoryProvider>
       </PaperProvider>

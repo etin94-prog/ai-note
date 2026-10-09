@@ -3,14 +3,18 @@ import { StyleSheet, View } from 'react-native';
 import { Card, FAB, List, Text } from 'react-native-paper';
 
 import { Screen } from '@/components/Screen';
+import { useRepository } from '@/state/RepositoryContext';
 import { type Academy, type Enrollment, memberById, WEEKDAY_LABELS } from '@/domain/types';
 import { useCollection } from '@/state/useCollection';
 
 /** 학원 목록 (B-1). 학원마다 수강 중인 자녀·요일 요약 */
 export default function AcademiesScreen() {
+  const { isChild, readOnly, settings } = useRepository();
   const academies = useCollection<Academy>('academies');
   const enrollments = useCollection<Enrollment>('enrollments');
-  const sorted = [...academies.docs].sort((a, b) =>
+  // 자녀 기기는 본인이 다니는 학원만 (U-06)
+  const own = new Set(enrollments.docs.filter((e) => e.childId === settings.memberId).map((e) => e.academyId));
+  const sorted = [...academies.docs].filter((a) => !isChild || own.has(a.id)).sort((a, b) =>
     a.status === b.status ? a.name.localeCompare(b.name) : a.status === 'active' ? -1 : 1,
   );
 
@@ -27,7 +31,7 @@ export default function AcademiesScreen() {
           </Card>
         )}
         {sorted.map((a) => {
-          const mine = enrollments.docs.filter((e) => e.academyId === a.id && e.status !== 'ended');
+          const mine = enrollments.docs.filter((e) => e.academyId === a.id && e.status !== 'ended' && (!isChild || e.childId === settings.memberId));
           const desc =
             mine
               .map(
@@ -49,7 +53,7 @@ export default function AcademiesScreen() {
         })}
         <View style={{ height: 80 }} />
       </Screen>
-      <FAB icon="plus" label="학원 추가" style={styles.fab} onPress={() => router.push('/academy')} />
+      {!isChild && !readOnly && <FAB icon="plus" label="학원 추가" style={styles.fab} onPress={() => router.push('/academy')} />}
     </View>
   );
 }

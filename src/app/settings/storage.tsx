@@ -11,6 +11,8 @@ import { BUILD_VERSION } from '@/lib/config';
 import { firebaseConfigFromEnv } from '@/lib/firebase';
 import { useRepository } from '@/state/RepositoryContext';
 import type { DeviceSettings, StorageMode } from '@/state/settings';
+import { MIRROR_REPOS } from '@/domain/childMirror';
+import { memberById, type MemberId } from '@/domain/types';
 
 const MEMBERS = [
   { id: 'dad', label: '아빠' },
@@ -26,7 +28,7 @@ type TestDoc = StoredDoc<{ name: string; spikeTest: boolean; device: string }>;
  * 토큰은 이 화면에 직접 입력하고, 저장 후에는 다시 보여주지 않는다 (G-08).
  */
 export default function StorageSettingsScreen() {
-  const { settings, updateSettings, repo, writeContext, refresh, lastSyncAt, syncError } = useRepository();
+  const { settings, updateSettings, repo, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors } = useRepository();
   const [draft, setDraft] = useState<DeviceSettings>(settings);
   // 저장된 설정을 늦게 읽어오므로 반영
   useEffect(() => setDraft(settings), [settings]);
@@ -42,6 +44,16 @@ export default function StorageSettingsScreen() {
   }, [repo]);
 
   const set = (patch: Partial<DeviceSettings>) => setDraft((d) => ({ ...d, ...patch }));
+
+  /** 사용자 선택 시 GitHub 저장소 기본값: 부모 = ai-note-data, 아이 = 본인 읽기 전용 사본 (D-14) */
+  const chooseMember = (memberId: string) =>
+    setDraft((d) => {
+      const mirrorRepo = MIRROR_REPOS[memberId as MemberId];
+      const known = ['ai-note-data', ...Object.values(MIRROR_REPOS)];
+      const repoName = known.includes(d.github.repo) ? (mirrorRepo ?? 'ai-note-data') : d.github.repo;
+      return { ...d, memberId, github: { ...d.github, repo: repoName } };
+    });
+  const draftIsChild = memberById(draft.memberId)?.role === 'child';
 
   async function checkGitHub() {
     setCheck(null);
@@ -95,7 +107,7 @@ export default function StorageSettingsScreen() {
           <Text variant="labelLarge">사용자</Text>
           <View style={styles.chips}>
             {MEMBERS.map((m) => (
-              <Chip key={m.id} selected={draft.memberId === m.id} showSelectedOverlay onPress={() => set({ memberId: m.id })}>
+              <Chip key={m.id} selected={draft.memberId === m.id} showSelectedOverlay onPress={() => chooseMember(m.id)}>
                 {m.label}
               </Chip>
             ))}
@@ -132,6 +144,11 @@ export default function StorageSettingsScreen() {
             <View style={styles.gap}>
               <TextInput mode="outlined" label="소유자" value={draft.github.owner} onChangeText={(owner) => set({ github: { ...draft.github, owner } })} />
               <TextInput mode="outlined" label="데이터 저장소" value={draft.github.repo} onChangeText={(repo) => set({ github: { ...draft.github, repo } })} />
+              {draftIsChild && (
+                <HelperText type="info">
+                  아이 폰은 본인 사본 저장소({draft.github.repo})를 읽기 전용 토큰으로 연결합니다. 부모 폰이 저장할 때 자동으로 갱신됩니다.
+                </HelperText>
+              )}
               <TextInput
                 mode="outlined"
                 label={draft.github.token ? '토큰 저장됨 — 바꿀 때만 입력' : 'GitHub 토큰 (github_pat_…)'}
@@ -215,12 +232,40 @@ export default function StorageSettingsScreen() {
           </Card.Actions>
         </Card>
       )}
+
+      {settings.mode === 'github' && memberById(settings.memberId)?.role === 'parent' && repo && (
+        <Card style={styles.card} mode="outlined">
+          <Card.Title title="아이 폰용 사본" subtitle="아이별 읽기 전용 저장소 (본인 일정만, 비용 없음)" titleVariant="titleMedium" />
+          <Card.Content>
+            {!mirror ? (
+              <Text variant="bodySmall">데이터가 바뀌면 몇 초 뒤 자동으로 갱신합니다.</Text>
+            ) : (
+              <>
+                <Text variant="bodySmall" style={styles.meta}>
+                  마지막 갱신 {new Date(mirror.at).toLocaleTimeString('ko-KR')}
+                </Text>
+                {mirror.results.map((r) => (
+                  <Text key={r.child} variant="bodySmall" style={r.error ? styles.err : undefined}>
+                    • {memberById(r.child)?.name}: {r.error ?? (r.changed ? `${r.changed}개 파일 갱신` : '변경 없음')}
+                  </Text>
+                ))}
+              </>
+            )}
+          </Card.Content>
+          <Card.Actions>
+            <Button icon="sync" onPress={() => void syncMirrors()}>
+              지금 갱신
+            </Button>
+          </Card.Actions>
+        </Card>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   card: { marginBottom: 12 },
+  err: { color: '#DC2626' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
   gap: { gap: 8, marginTop: 12 },
   meta: { marginVertical: 8, opacity: 0.7 },

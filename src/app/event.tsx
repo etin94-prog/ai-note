@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, HelperText, Switch, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
 
 import { ChipSelect, DateField, Label, TimeField, WeekdayChips } from '@/components/FormFields';
@@ -9,8 +9,9 @@ import { MemberMultiSelect } from '@/components/MemberChips';
 import { Screen } from '@/components/Screen';
 import type { StoredDoc } from '@/data/repository';
 import { today, weekdayOf } from '@/domain/dates';
-import { EVENT_KIND_LABELS, type EventKind, type MemberId, type ScheduleEvent, type Weekday } from '@/domain/types';
+import { EVENT_KIND_LABELS, type EventKind, type MemberId, type Place, type ScheduleEvent, type Weekday } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
+import { useCollection } from '@/state/useCollection';
 
 const KINDS = (Object.keys(EVENT_KIND_LABELS) as EventKind[]).filter((k) => k !== 'class');
 const SCOPES = [
@@ -25,6 +26,7 @@ export default function EventScreen() {
   const { repo, settings, writeContext } = useRepository();
   const [existing, setExisting] = useState<StoredDoc<ScheduleEvent> | null>(null);
   const me = (settings.memberId || 'mom') as MemberId;
+  const places = useCollection<Place>('places');
 
   // 휴강 회차에서 [보강 추가]로 들어오면 종류·제목·대상 미리 채움 (S-04)
   const [kind, setKind] = useState<EventKind>(params.makeupFor ? 'makeup' : 'appointment');
@@ -152,6 +154,17 @@ export default function EventScreen() {
 
       <Label>더 보기</Label>
       <TextInput mode="outlined" dense label="장소 (주소 또는 이름)" value={place} onChangeText={setPlace} style={styles.gap} />
+      {places.docs.length > 0 && (
+        <View style={styles.chips}>
+          {places.docs
+            .filter((p) => !(p as unknown as { spikeTest?: boolean }).spikeTest)
+            .map((p) => (
+              <Chip key={p.id} compact icon="map-marker-outline" onPress={() => setPlace(p.address || p.name)}>
+                {p.name}
+              </Chip>
+            ))}
+        </View>
+      )}
       <TextInput
         mode="outlined"
         dense
@@ -185,5 +198,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, marginVertical: 4 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
   gap: { marginBottom: 8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   save: { marginTop: 16, marginBottom: 8 },
 });

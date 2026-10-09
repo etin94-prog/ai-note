@@ -25,7 +25,8 @@ const PAY_TYPES = Object.keys(PAY_TYPE_LABELS) as PayType[];
 /** 학원 추가·수정 (A-01, A-04) + 납부 정보 (A-10~A-12, 부모 전용) + 수강 목록 */
 export default function AcademyScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { repo, writeContext } = useRepository();
+  const { repo, writeContext, isChild, readOnly } = useRepository();
+  const locked = isChild || readOnly;
   const enrollments = useCollection<Enrollment>('enrollments');
 
   const [academy, setAcademy] = useState<StoredDoc<Academy> | null>(null);
@@ -57,7 +58,8 @@ export default function AcademyScreen() {
       setTeacher(a.teacher ?? '');
       setMemo(a.memo ?? '');
     });
-    void repo.get<PaymentInfo>('paymentInfos', id).then((p) => {
+    // 납부 정보는 부모 전용 (U-05) — 자녀 기기에서는 읽지 않음
+    if (!isChild) void repo.get<PaymentInfo>('paymentInfos', id).then((p) => {
       if (!p) return;
       setPay(p);
       setPayType(p.payType);
@@ -68,7 +70,7 @@ export default function AcademyScreen() {
       setHolder(p.holder ?? '');
       setAppName(p.appName ?? '');
     });
-  }, [repo, id]);
+  }, [repo, id, isChild]);
 
   async function save(statusOverride?: Academy['status']) {
     if (!repo) return;
@@ -115,7 +117,7 @@ export default function AcademyScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: academy ? academy.name : '학원 추가' }} />
-      <TextInput mode="outlined" label="학원 이름 *" value={name} onChangeText={setName} style={styles.gap} />
+      <TextInput mode="outlined" editable={!locked} label="학원 이름 *" value={name} onChangeText={setName} style={styles.gap} />
       <TextInput mode="outlined" dense label="과목 (예: 수학, 영어)" value={subject} onChangeText={setSubject} style={styles.gap} />
       <TextInput mode="outlined" dense label="주소 (지도 연결용)" value={address} onChangeText={setAddress} style={styles.gap} />
       <View style={styles.row}>
@@ -124,6 +126,7 @@ export default function AcademyScreen() {
       </View>
       <TextInput mode="outlined" dense label="메모 (차량 시간 등)" value={memo} onChangeText={setMemo} multiline style={styles.gap} />
 
+      {!isChild && (
       <Card mode="outlined" style={styles.card}>
         <Card.Title title="납부 정보" subtitle="부모만 볼 수 있음" titleVariant="titleMedium" />
         <Card.Content>
@@ -147,11 +150,12 @@ export default function AcademyScreen() {
           <ChipSelect options={PARENTS.map((p) => ({ value: p.id as 'dad' | 'mom', label: p.name }))} value={payer} onChange={setPayer} />
         </Card.Content>
       </Card>
+      )}
 
       {error && <HelperText type="error">{error}</HelperText>}
-      <Button mode="contained" onPress={() => void save()} style={styles.gap}>
+      {!locked && (<Button mode="contained" onPress={() => void save()} style={styles.gap}>
         {academy ? '저장' : '저장하고 수강 등록하기'}
-      </Button>
+      </Button>)}
 
       {academy && (
         <Card mode="outlined" style={styles.card}>
@@ -167,18 +171,18 @@ export default function AcademyScreen() {
               title={`${memberById(e.childId)?.name} ${e.course || ''}${e.status === 'paused' ? ' (휴원)' : e.status === 'ended' ? ' (종료)' : ''}`}
               description={e.slots.map((s) => `${WEEKDAY_LABELS[s.weekday]} ${s.start}~${s.end}`).join(', ')}
               left={(p) => <List.Icon {...p} icon="account-school-outline" />}
-              onPress={() => router.push({ pathname: '/enrollment', params: { id: e.id, academyId: academy.id } })}
+              onPress={locked ? undefined : () => router.push({ pathname: '/enrollment', params: { id: e.id, academyId: academy.id } })}
             />
           ))}
-          <Card.Actions>
+          {!locked && <Card.Actions>
             <Button icon="plus" mode="contained-tonal" onPress={() => router.push({ pathname: '/enrollment', params: { academyId: academy.id } })}>
               수강 추가
             </Button>
-          </Card.Actions>
+          </Card.Actions>}
         </Card>
       )}
 
-      {academy && (
+      {academy && !locked && (
         <Button textColor={academy.status === 'active' ? '#DC2626' : undefined} onPress={() => void save(academy.status === 'active' ? 'closed' : 'active')}>
           {academy.status === 'active' ? '이 학원 그만둠 (기록은 보존)' : '다시 다니기'}
         </Button>

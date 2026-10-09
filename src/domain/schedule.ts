@@ -4,6 +4,7 @@ import type {
   Enrollment,
   EventKind,
   ExceptionStatus,
+  Holiday,
   MemberId,
   OccurrenceException,
   ScheduleEvent,
@@ -26,6 +27,10 @@ export interface Occurrence {
   startAt: string;
   endAt: string;
   status: 'normal' | ExceptionStatus;
+  /** "이번만" 시간이 바뀐 회차 */
+  moved?: boolean;
+  /** 원래 시각 (moved 일 때) */
+  originalStart?: string;
   place?: string;
   checklist: string[];
   checked: string[];
@@ -47,24 +52,47 @@ export interface ExpandInput {
   enrollments: Input<Enrollment>[];
   events: Input<ScheduleEvent>[];
   exceptions: Input<OccurrenceException>[];
+  holidays?: Input<Holiday>[];
+}
+
+/** 방학·휴일로 빠지는 대상자 제거. 등하교·학원 수업에만 적용 (S-05, S-14) */
+function applyHolidays(kind: EventKind, date: string, targets: MemberId[], holidays: Holiday[]): MemberId[] {
+  if (kind !== 'school' && kind !== 'class') return targets;
+  return targets.filter(
+    (t) =>
+      !holidays.some(
+        (h) => h.memberIds.includes(t) && h.start <= date && date <= h.end && (kind === 'school' ? h.skipSchool : h.skipClass),
+      ),
+  );
 }
 
 /** 기간 [from, to] 의 모든 회차. 시간순 정렬. */
 export function expandOccurrences(input: ExpandInput): Occurrence[] {
   const academyName = new Map(input.academies.map((a) => [a.id, a.data]));
   const exByKey = new Map(input.exceptions.map((e) => [e.data.occurrenceKey, e.data]));
+  const holidays = (input.holidays ?? []).map((h) => h.data);
   const out: Occurrence[] = [];
 
   const push = (o: Omit<Occurrence, 'key' | 'startAt' | 'endAt' | 'status' | 'checked'>) => {
+    const targets = applyHolidays(o.kind, o.date, o.targets, holidays);
+    if (targets.length === 0) return;
     const key = occurrenceKey(o.source, o.sourceId, o.date, o.start);
     const ex = exByKey.get(key);
+    // "이번만" 시간 변경 (S-03). 회차 키는 원래 시각 그대로 유지 (S-13)
+    const start = ex?.start || o.start;
+    const end = ex?.end || o.end;
+    const moved = start !== o.start || end !== o.end;
     out.push({
       ...o,
+      targets,
+      start,
+      end,
       key,
-      startAt: `${o.date}T${o.start}`,
-      endAt: `${o.date}T${o.end}`,
+      startAt: `${o.date}T${start}`,
+      endAt: `${o.date}T${end}`,
       status: ex?.status ?? 'normal',
       checked: ex?.checked ?? [],
+      ...(moved ? { moved: true, originalStart: o.start } : {}),
     });
   };
 

@@ -124,8 +124,30 @@ export const exceptionLabel = (kind: EventKind, status: ExceptionStatus) =>
 /** 회차 예외 — 컬렉션 exceptions, 문서 id = occurrenceKey */
 export interface OccurrenceException {
   occurrenceKey: string;
-  status?: ExceptionStatus;
+  status?: ExceptionStatus | null;
   reason?: string;
   /** S-16 회차별 준비물 체크 */
   checked?: string[];
+  /** S-03 "이번만" 시간 변경 */
+  start?: string;
+  end?: string;
+}
+
+/** S-06 자주 가는 장소 */
+export interface Place {
+  name: string;
+  address?: string;
+  memo?: string;
+}
+
+/** S-05·S-14 방학·휴일 — 아이(학교)별 */
+export interface Holiday {
+  name: string;
+  memberIds: MemberId[];
+  start: string;
+  end: string;
+  /** 이 기간 등하교 일정 빼기 */
+  skipSchool: boolean;
+  /** 이 기간 학원 수업 빼기 (방학에도 학원은 가는 경우가 많아 기본 false) */
+  skipClass: boolean;
 }
