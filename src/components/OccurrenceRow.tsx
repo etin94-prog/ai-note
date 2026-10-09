@@ -11,17 +11,20 @@ interface Props {
   occ: Occurrence;
   conflict?: boolean;
   showDate?: boolean;
+  /** PC: 화면 이동 대신 옆 패널에 열기 (X-19) */
+  onSelect?: (key: string) => void;
+  selected?: boolean;
 }
 
 /** 일정 한 줄. 누르면 회차 상세(휴강·결석·준비물·지도). 상태는 색+글자 (X-10) */
-export function OccurrenceRow({ occ, conflict }: Props) {
+export function OccurrenceRow({ occ, conflict, onSelect, selected }: Props) {
   const off = occ.status !== 'normal';
   const who = occ.targets.map((t) => memberById(t)?.name).join('·');
   const done = occ.checklist.length ? ` · 준비물 ${occ.checked.length}/${occ.checklist.length}` : '';
   return (
     <List.Item
-      onPress={() => router.push({ pathname: '/occurrence', params: { key: occ.key } })}
-      style={styles.item}
+      onPress={() => (onSelect ? onSelect(occ.key) : router.push({ pathname: '/occurrence', params: { key: occ.key } }))}
+      style={[styles.item, selected && styles.selected]}
       title={
         <Text style={[styles.title, off && styles.off]}>
           {occ.title}
@@ -48,6 +51,7 @@ export function OccurrenceRow({ occ, conflict }: Props) {
 
 const styles = StyleSheet.create({
   item: { paddingVertical: 2 },
+  selected: { backgroundColor: '#EFF6FF' },
   left: { width: 48, alignItems: 'center', justifyContent: 'center' },
   time: { fontWeight: '700', fontSize: 15 },
   end: { fontSize: 12, opacity: 0.6 },

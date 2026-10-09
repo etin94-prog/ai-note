@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 
+import { useLayout } from '@/lib/useLayout';
 import { useRepository } from '@/state/RepositoryContext';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -19,8 +20,18 @@ function icon(name: IconName) {
  */
 export default function TabsLayout() {
   const { isChild } = useRepository();
+  const { wide } = useLayout();
   return (
-    <Tabs screenOptions={{ headerTitleAlign: 'center' }}>
+    <Tabs
+      screenOptions={{
+        headerTitleAlign: wide ? 'left' : 'center',
+        // PC: 왼쪽 세로 메뉴 (X-16), 폰: 하단 탭
+        tabBarPosition: wide ? 'left' : 'bottom',
+        tabBarVariant: wide ? 'material' : 'uikit',
+        tabBarLabelPosition: wide ? 'beside-icon' : 'below-icon',
+        // 기본 사이드바 최소 폭(약 360px)이 본문을 좁히므로 180px 로
+        tabBarStyle: wide ? { width: 180, minWidth: 180 } : undefined,
+      }}>
       <Tabs.Screen name="index" options={{ title: '홈', tabBarIcon: icon('home-variant') }} />
       <Tabs.Screen name="schedule" options={{ title: '일정', tabBarIcon: icon('calendar-week') }} />
       <Tabs.Screen name="cost" options={{ title: '비용', tabBarIcon: icon('cash-multiple'), href: isChild ? null : undefined }} />

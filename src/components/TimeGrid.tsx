@@ -11,7 +11,19 @@ const HOUR_H = 44;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 /** 주간 시간표 격자 (S-V2): 요일 × 시간, 사람별 색 */
-export function TimeGrid({ days, occurrences }: { days: string[]; occurrences: Occurrence[] }) {
+export function TimeGrid({
+  days,
+  occurrences,
+  onSelect,
+  selectedKey,
+  hourHeight = HOUR_H,
+}: {
+  days: string[];
+  occurrences: Occurrence[];
+  onSelect?: (key: string) => void;
+  selectedKey?: string;
+  hourHeight?: number;
+}) {
   const starts = occurrences.map((o) => toMin(o.start));
   const ends = occurrences.map((o) => toMin(o.end));
   const fromH = Math.min(8, ...starts.map((m) => Math.floor(m / 60)));
@@ -36,28 +48,28 @@ export function TimeGrid({ days, occurrences }: { days: string[]; occurrences: O
       <View style={styles.body}>
         <View style={styles.hourCol}>
           {hours.map((h) => (
-            <Text key={h} style={styles.hourText}>
+            <Text key={h} style={[styles.hourText, { height: hourHeight }]}>
               {h}
             </Text>
           ))}
         </View>
         {days.map((d) => (
-          <View key={d} style={[styles.dayCol, styles.dayBody, { height: hours.length * HOUR_H }, d === t && styles.todayBg]}>
+          <View key={d} style={[styles.dayCol, styles.dayBody, { height: hours.length * hourHeight }, d === t && styles.todayBg]}>
             {hours.map((h, i) => (
-              <View key={h} style={[styles.line, { top: i * HOUR_H }]} />
+              <View key={h} style={[styles.line, { top: i * hourHeight }]} />
             ))}
             {(() => {
               const dayOcc = occurrences.filter((o) => o.date === d);
               const lanes = layoutLanes(dayOcc);
               return dayOcc.map((o) => {
                 const color = memberById(o.targets[0])?.color ?? '#6B7280';
-                const top = ((toMin(o.start) - fromH * 60) / 60) * HOUR_H;
-                const height = Math.max(18, ((toMin(o.end) - toMin(o.start)) / 60) * HOUR_H - 2);
+                const top = ((toMin(o.start) - fromH * 60) / 60) * hourHeight;
+                const height = Math.max(18, ((toMin(o.end) - toMin(o.start)) / 60) * hourHeight - 2);
                 const { lane, lanes: n } = lanes.get(o.key) ?? { lane: 0, lanes: 1 };
                 return (
                   <Pressable
                     key={o.key}
-                    onPress={() => router.push({ pathname: '/occurrence', params: { key: o.key } })}
+                    onPress={() => (onSelect ? onSelect(o.key) : router.push({ pathname: '/occurrence', params: { key: o.key } }))}
                     style={[
                       styles.block,
                       {
@@ -69,6 +81,7 @@ export function TimeGrid({ days, occurrences }: { days: string[]; occurrences: O
                         borderLeftColor: color,
                       },
                       o.status !== 'normal' && styles.off,
+                      o.key === selectedKey && styles.sel,
                     ]}>
                     <Text numberOfLines={3} style={[styles.blockText, o.status !== 'normal' && styles.strike]}>
                       {o.title}
@@ -98,5 +111,6 @@ const styles = StyleSheet.create({
   block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 3, paddingHorizontal: 2, overflow: 'hidden' },
   blockText: { fontSize: 10, lineHeight: 12 },
   off: { opacity: 0.45 },
+  sel: { borderColor: '#2563EB', borderWidth: 2 },
   strike: { textDecorationLine: 'line-through' },
 });

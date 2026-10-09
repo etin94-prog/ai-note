@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
@@ -54,8 +54,24 @@ export function PaymentDialog({
     setCard(last.card);
   }, [target]);
 
+  // PC 키보드 (X-20): Enter = 확인, Esc = 닫기
+  const keyRef = useRef<{ confirm: () => void; dismiss: () => void }>({ confirm: () => {}, dismiss: () => {} });
+  keyRef.current = { confirm: () => void confirm(), dismiss: onDismiss };
+  useEffect(() => {
+    if (!target || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') keyRef.current.dismiss();
+      if (e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault();
+        keyRef.current.confirm();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [target]);
+
   async function confirm() {
-    if (!repo || !target || amount <= 0) return;
+    if (!repo || !target || amount <= 0 || saving) return;
     setSaving(true);
     const data: Payment = {
       billId: target.id,
