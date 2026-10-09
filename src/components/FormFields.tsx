@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Chip, HelperText, Text, TextInput } from 'react-native-paper';
 
@@ -9,7 +9,11 @@ import { WEEK_ORDER, WEEKDAY_LABELS, type Weekday } from '@/domain/types';
 export function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState(false);
-  useEffect(() => setText(value), [value]);
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setText(value);
+  }
   return (
     <View style={styles.flex}>
       <TextInput
@@ -39,7 +43,11 @@ export function TimeField({ label, value, onChange }: { label: string; value: st
 export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState(false);
-  useEffect(() => setText(value), [value]);
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setText(value);
+  }
   return (
     <View style={styles.flex}>
       <TextInput

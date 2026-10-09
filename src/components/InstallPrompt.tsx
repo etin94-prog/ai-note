@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 
@@ -18,25 +18,27 @@ function isIOS(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+const noSubscribe = () => () => {};
+
 /**
  * 홈 화면 설치 안내 (D-10, X-12, Q-14).
  * Android 크롬: [앱 설치] 버튼, iPhone 사파리: 공유 → 홈 화면에 추가 안내. 설치 후에는 숨김.
  */
 export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  // 정적 HTML 과 첫 화면이 같도록 처음엔 숨기고, 브라우저에서 확인 후 표시 (hydration 일치)
-  const [installed, setInstalled] = useState(true);
-  const [ios, setIos] = useState(false);
+  // 정적 HTML 과 첫 화면이 같도록 처음엔 숨기고(서버 값), 브라우저에서 확인 후 표시 (hydration 일치)
+  const standalone = useSyncExternalStore(noSubscribe, isStandalone, () => true);
+  const ios = useSyncExternalStore(noSubscribe, isIOS, () => false);
+  const [appInstalled, setAppInstalled] = useState(false);
+  const installed = standalone || appInstalled;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    setInstalled(isStandalone());
-    setIos(isIOS());
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
     };
-    const onInstalled = () => setInstalled(true);
+    const onInstalled = () => setAppInstalled(true);
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
     return () => {
@@ -72,7 +74,7 @@ export function InstallPrompt() {
             onPress={async () => {
               await deferred.prompt();
               const { outcome } = await deferred.userChoice;
-              if (outcome === 'accepted') setInstalled(true);
+              if (outcome === 'accepted') setAppInstalled(true);
               setDeferred(null);
             }}>
             앱 설치

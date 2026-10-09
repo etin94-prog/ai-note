@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, FAB, IconButton, SegmentedButtons, Text } from 'react-native-paper';
 
@@ -30,9 +30,11 @@ export default function ScheduleScreen() {
   const [selected, setSelected] = useState<string | null>(null);
 
   // 폰 → PC 로 넓어지면 시간표로 (X-21)
-  useEffect(() => {
+  const [prevWide, setPrevWide] = useState(wide);
+  if (wide !== prevWide) {
+    setPrevWide(wide);
     if (wide && view === 'day') setView('grid');
-  }, [wide]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const monday = mondayOf(day);
   const from = view === 'day' ? day : monday;

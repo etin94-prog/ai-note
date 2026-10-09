@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, IconButton, Text, TextInput } from 'react-native-paper';
@@ -7,13 +7,12 @@ import { ulid } from 'ulid';
 import { ChipSelect, DateField, Label, TimeField, WeekdayChips } from '@/components/FormFields';
 import { Screen } from '@/components/Screen';
 import { goBack } from '@/lib/nav';
-import type { StoredDoc } from '@/data/repository';
+import type { Op, StoredDoc } from '@/data/repository';
 import { today } from '@/domain/dates';
 import { type Academy, CHILDREN, type Enrollment, type MemberId, type TimeSlot, type Weekday } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { MoneyInput } from '@/components/MoneyInput';
-import type { Op } from '@/data/repository';
 import { type EnrollmentCost, type PayCycle, type PayTiming, won } from '@/domain/money';
 
 const STATUS = [
@@ -66,14 +65,18 @@ export default function EnrollmentScreen() {
     });
   }, [repo, id, academyId]);
 
-  useEffect(() => {
-    const c = myCosts[0];
-    if (!c) return;
-    setCostAmount(c.amount);
-    setPayDay(String(c.payDay));
-    setTiming(c.timing);
-    setCycle(c.cycle);
-  }, [myCosts[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 최신 비용 조건이 바뀌면 폼에 채움 (null = 아직 한 번도 보지 않음)
+  const latestCost = myCosts[0];
+  const [prevCostId, setPrevCostId] = useState<string | undefined | null>(null);
+  if (latestCost?.id !== prevCostId) {
+    setPrevCostId(latestCost?.id);
+    if (latestCost) {
+      setCostAmount(latestCost.amount);
+      setPayDay(String(latestCost.payDay));
+      setTiming(latestCost.timing);
+      setCycle(latestCost.cycle);
+    }
+  }
 
   const setGroup = (i: number, patch: Partial<(typeof groups)[number]>) =>
     setGroups((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));

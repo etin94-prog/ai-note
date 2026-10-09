@@ -9,9 +9,9 @@ import { useRepository } from '@/state/RepositoryContext';
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 function icon(name: IconName) {
-  return ({ color, size }: { color: ColorValue; size: number }) => (
-    <MaterialCommunityIcons name={name} color={color as string} size={size} />
-  );
+  return function TabIcon({ color, size }: { color: ColorValue; size: number }) {
+    return <MaterialCommunityIcons name={name} color={color as string} size={size} />;
+  };
 }
 
 /**

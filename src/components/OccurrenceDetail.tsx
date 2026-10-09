@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, HelperText, Text } from 'react-native-paper';
 import { ulid } from 'ulid';
@@ -38,12 +38,16 @@ export function OccurrenceDetail({ occKey: key, embedded = false, onClose }: { o
   const [end, setEnd] = useState('');
   const [scope, setScope] = useState<EditScope>('this');
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  // 회차 시각이 불러와지거나 바뀌면 입력칸에 채움 (null = 아직 한 번도 보지 않음)
+  const occTime = occ ? `${occ.start}-${occ.end}` : undefined;
+  const [prevOccTime, setPrevOccTime] = useState<string | undefined | null>(null);
+  if (occTime !== prevOccTime) {
+    setPrevOccTime(occTime);
     if (occ) {
       setStart(occ.start);
       setEnd(occ.end);
     }
-  }, [occ?.start, occ?.end]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   async function saveException(patch: Partial<OccurrenceException>, label: string) {
     if (!repo || !occ) return;
@@ -83,7 +87,10 @@ export function OccurrenceDetail({ occKey: key, embedded = false, onClose }: { o
     }
     setEditTime(false);
     // "이후 모두/전체" 는 회차 키가 바뀔 수 있어 목록으로 돌아감
-    if (occ.source === 'event' && scope !== 'this') (embedded ? onClose?.() : goBack('/schedule'));
+    if (occ.source === 'event' && scope !== 'this') {
+      if (embedded) onClose?.();
+      else goBack('/schedule');
+    }
   }
 
   if (!occ) {

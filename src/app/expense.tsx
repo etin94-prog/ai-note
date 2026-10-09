@@ -1,5 +1,5 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, HelperText, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
@@ -40,16 +40,16 @@ export default function ExpenseScreen() {
   const [memo, setMemo] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const e = docs.find((d) => d.id === id);
-    if (!e || existing) return;
-    setExisting(e);
-    setAmount(e.amount);
-    setCategory(e.category);
-    setChildId(e.childId);
-    setDate(e.date);
-    setMemo(e.memo ?? '');
-  }, [docs, id, existing]);
+  // 수정할 지출이 불러와지면 한 번만 폼에 채움
+  const found = existing ? undefined : docs.find((d) => d.id === id);
+  if (found) {
+    setExisting(found);
+    setAmount(found.amount);
+    setCategory(found.category);
+    setChildId(found.childId);
+    setDate(found.date);
+    setMemo(found.memo ?? '');
+  }
 
   // 쓴 적 있는 사용자 분류도 칩으로 (F-22)
   const categories = [...new Set([...DEFAULT_EXPENSE_CATEGORIES, ...docs.map((d) => d.category)])];

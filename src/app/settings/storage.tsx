@@ -31,7 +31,11 @@ export default function StorageSettingsScreen() {
   const { settings, updateSettings, repo, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors } = useRepository();
   const [draft, setDraft] = useState<DeviceSettings>(settings);
   // 저장된 설정을 늦게 읽어오므로 반영
-  useEffect(() => setDraft(settings), [settings]);
+  const [prevSettings, setPrevSettings] = useState(settings);
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
+    setDraft(settings);
+  }
   const [tokenInput, setTokenInput] = useState('');
   const [check, setCheck] = useState<string | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);

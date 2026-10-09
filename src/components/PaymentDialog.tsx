@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
@@ -44,30 +44,33 @@ export function PaymentDialog({
   const [card, setCard] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!target) return;
-    const last = lastMethod();
-    setOpId(ulid());
-    setAmount(target.state.remaining || target.state.due);
-    setPaidOn(today());
-    setMethod(last.method);
-    setCard(last.card);
-  }, [target]);
+  // 대화상자를 열 때마다 기본값으로 채우고 새 기록 ID 를 만든다
+  const [prevTarget, setPrevTarget] = useState(target);
+  if (target !== prevTarget) {
+    setPrevTarget(target);
+    if (target) {
+      const last = lastMethod();
+      setOpId(ulid());
+      setAmount(target.state.remaining || target.state.due);
+      setPaidOn(today());
+      setMethod(last.method);
+      setCard(last.card);
+    }
+  }
 
   // PC 키보드 (X-20): Enter = 확인, Esc = 닫기
-  const keyRef = useRef<{ confirm: () => void; dismiss: () => void }>({ confirm: () => {}, dismiss: () => {} });
-  keyRef.current = { confirm: () => void confirm(), dismiss: onDismiss };
+  const onKey = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onDismiss();
+    if (e.key === 'Enter' && !e.isComposing) {
+      e.preventDefault();
+      void confirm();
+    }
+  });
   useEffect(() => {
     if (!target || typeof window === 'undefined') return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') keyRef.current.dismiss();
-      if (e.key === 'Enter' && !e.isComposing) {
-        e.preventDefault();
-        keyRef.current.confirm();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const handler = (e: KeyboardEvent) => onKey(e);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [target]);
 
   async function confirm() {

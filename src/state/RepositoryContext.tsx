@@ -59,6 +59,8 @@ function buildRepo(s: DeviceSettings): Repository | null {
 export function RepositoryProvider({ children }: PropsWithChildren) {
   // 정적 HTML 과 첫 화면을 맞추기 위해 기본값으로 시작하고, 브라우저에서 저장된 설정을 읽는다.
   const [settings, setSettings] = useState<DeviceSettings>(DEFAULT_SETTINGS);
+  // localStorage(외부 저장소)는 hydration 이 끝난 뒤에만 읽을 수 있다
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setSettings(loadSettings()), []);
   const repo = useMemo(() => buildRepo(settings), [settings]);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
@@ -88,6 +90,8 @@ export function RepositoryProvider({ children }: PropsWithChildren) {
   // GitHub 모드: 앱 열 때 + 화면 복귀 + 1분마다
   useEffect(() => {
     if (!(repo instanceof GitHubRepository)) return;
+    // GitHub 원격 저장소와 동기화 (상태는 비동기 응답 후에만 바뀜)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const timer = setInterval(() => void refresh(), POLL_MS);
     const onVisible = () => document.visibilityState === 'visible' && void refresh();

@@ -1,30 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { Collection, StoredDoc } from '@/data/repository';
+import type { Collection, Repository, StoredDoc } from '@/data/repository';
 import { addDays } from '@/domain/dates';
 import { expandOccurrences, type Occurrence } from '@/domain/schedule';
 import type { Academy, Enrollment, Holiday, OccurrenceException, ScheduleEvent } from '@/domain/types';
 
 import { useRepository } from './RepositoryContext';
 
+const EMPTY: never[] = [];
+
 /** 컬렉션 실시간 구독. 저장 모드가 없으면 빈 목록. */
 export function useCollection<T>(col: Collection) {
   const { repo } = useRepository();
-  const [docs, setDocs] = useState<StoredDoc<T>[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // 어느 저장소·컬렉션에서 받은 목록인지 함께 보관 → 바뀐 직후엔 "불러오는 중"
+  const [snap, setSnap] = useState<{ repo: Repository; col: Collection; docs: StoredDoc<T>[] } | null>(null);
+  if (!repo && snap) setSnap(null);
   useEffect(() => {
-    if (!repo) {
-      setDocs([]);
-      setLoaded(true);
-      return;
-    }
-    setLoaded(false);
-    return repo.watch<T>(col, (d) => {
-      setDocs(d);
-      setLoaded(true);
-    });
+    if (!repo) return;
+    return repo.watch<T>(col, (docs) => setSnap({ repo, col, docs }));
   }, [repo, col]);
-  return { docs, loaded };
+  if (!repo) return { docs: EMPTY as StoredDoc<T>[], loaded: true };
+  return { docs: snap?.docs ?? (EMPTY as StoredDoc<T>[]), loaded: snap?.repo === repo && snap.col === col };
 }
 
 const asInput = <T,>(docs: StoredDoc<T>[]) => docs.map((d) => ({ id: d.id, data: d as T }));

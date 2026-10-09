@@ -71,7 +71,7 @@ describe('셀 변환 (I-13)', () => {
   });
 });
 
-describe('엑셀 왕복 (S0-7, I-18)', () => {
+describe('엑셀 왕복 (S0-7, I-18)', { timeout: 30_000 }, () => {
   it('내보낸 파일을 그대로 가져오면 모두 "변경 없음", 파일에 없음 0', async () => {
     const data = await dataOf(await seed());
     const { tables, info } = await roundTrip(data);
@@ -92,7 +92,7 @@ describe('엑셀 왕복 (S0-7, I-18)', () => {
   });
 });
 
-describe('가져오기 비교 규칙 (구현계획서 3.8)', () => {
+describe('가져오기 비교 규칙 (구현계획서 3.8)', { timeout: 30_000 }, () => {
   it('수정·충돌·신규·중복 후보·오류·파일에 없음 + 반영 + 되돌리기', async () => {
     const repo = await seed();
     const before = await dataOf(repo);

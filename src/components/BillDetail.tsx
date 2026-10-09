@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, Divider, HelperText, List, Snackbar, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
@@ -63,14 +63,18 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
   const [method, setMethod] = useState<PayMethod>('transfer');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!row) return;
-    setTitle(row.bill.title);
-    setAmount(row.bill.amount);
-    setDueDate(row.bill.dueDate);
-    setPayUrl(row.bill.payUrl ?? '');
-    setMemo(row.bill.memo ?? '');
-  }, [row?.doc.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 청구가 불러와지거나 다른 기기에서 바뀌면 폼에 채움 (null = 아직 한 번도 보지 않음)
+  const [prevVersion, setPrevVersion] = useState<number | undefined | null>(null);
+  if (row?.doc.version !== prevVersion) {
+    setPrevVersion(row?.doc.version);
+    if (row) {
+      setTitle(row.bill.title);
+      setAmount(row.bill.amount);
+      setDueDate(row.bill.dueDate);
+      setPayUrl(row.bill.payUrl ?? '');
+      setMemo(row.bill.memo ?? '');
+    }
+  }
 
   if (isChild) return <Wrap><Text>부모만 볼 수 있습니다.</Text></Wrap>;
 
