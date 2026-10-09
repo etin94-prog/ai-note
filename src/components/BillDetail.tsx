@@ -11,6 +11,7 @@ import { MoneyInput } from '@/components/MoneyInput';
 import { goPay, PaymentDialog } from '@/components/PaymentDialog';
 import { Screen } from '@/components/Screen';
 import type { Collection } from '@/data/repository';
+import { isCardConfirmed } from '@/domain/card';
 import { formatDate, today } from '@/domain/dates';
 import {
   type Adjustment,
@@ -249,7 +250,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             style={styles.item}
             title={`${formatDate(p.paidOn)}  ${wonFull(p.amount)}`}
             titleStyle={p.voided ? styles.strike : undefined}
-            description={`${PAY_METHOD_LABELS[p.method]}${p.card ? ` ${p.card}` : ''} · ${memberById(p.by)?.name ?? p.by}${p.voided ? ' · 취소됨' : ''}`}
+            description={`${PAY_METHOD_LABELS[p.method]}${p.card ? ` ${p.card}` : ''} · ${memberById(p.by)?.name ?? p.by}${isCardConfirmed(p.id) ? ' · 카드 내역으로 확인됨' : ''}${p.voided ? ' · 취소됨' : ''}`}
             right={() => (!p.voided ? <Button compact onPress={() => void voidRecord('payments', p.id, p.version, '납부 기록 정정')}>정정(취소)</Button> : null)}
           />
         ))}

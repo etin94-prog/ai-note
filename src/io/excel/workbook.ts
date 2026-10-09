@@ -95,7 +95,7 @@ export async function buildWorkbook(
   };
 
   for (const t of tables) {
-    const sh = SHEETS.find((s) => s.name === t.name)!;
+    const sh = SHEETS.find((s) => s.name === t.name) ?? { fields: [] as Field[] };
     const ws = wb.addWorksheet(t.name, { views: [{ state: 'frozen', ySplit: 1 }] });
     ws.addRow(t.headers);
     t.rows.forEach((r) => ws.addRow(r.map((c) => (c === undefined ? null : c))));
@@ -168,7 +168,8 @@ export async function readWorkbook(buf: ArrayBuffer): Promise<{ tables: Table[];
       return;
     }
     const headerRow = ws.getRow(1);
-    const width = headerRow.cellCount;
+    // 카드사 파일처럼 첫 줄이 제목 한 칸뿐인 시트도 있으니 시트 전체 열 수로
+    const width = Math.max(headerRow.cellCount, ws.columnCount ?? 0);
     const headers: string[] = [];
     for (let c = 1; c <= width; c++) headers.push(String(plain(headerRow.getCell(c).value) ?? '').trim());
     const rows: Cell[][] = [];

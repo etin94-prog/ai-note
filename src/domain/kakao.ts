@@ -131,7 +131,7 @@ function studentFromA(text: string): string {
   return b?.[1]?.trim() ?? '';
 }
 
-function hash(s: string): string {
+export function hash(s: string): string {
   let h1 = 0x811c9dc5;
   let h2 = 0;
   for (let i = 0; i < s.length; i++) {

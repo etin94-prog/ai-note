@@ -39,6 +39,7 @@ export default function RootLayout() {
             <Stack.Screen name="expense" options={{ title: '기타 지출' }} />
             <Stack.Screen name="excel" options={{ title: '엑셀 동기화' }} />
             <Stack.Screen name="admin" options={{ title: '관리자' }} />
+            <Stack.Screen name="setup" options={{ title: '처음 설정' }} />
           </Stack>
         </RepositoryProvider>
       </PaperProvider>

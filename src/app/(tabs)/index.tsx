@@ -12,10 +12,10 @@ import { SyncIndicator } from '@/components/SyncIndicator';
 import { TodoCard } from '@/components/TodoCard';
 import { formatDate, nowLocal, today } from '@/domain/dates';
 import { findConflicts, visibleFor } from '@/domain/schedule';
-import { type MemberId, MEMBERS } from '@/domain/types';
+import { type Academy, type MemberId, MEMBERS } from '@/domain/types';
 import { useLayout } from '@/lib/useLayout';
 import { useRepository } from '@/state/RepositoryContext';
-import { useNow, useOccurrences } from '@/state/useCollection';
+import { useCollection, useNow, useOccurrences } from '@/state/useCollection';
 
 /**
  * 홈 (S-V1, 구현계획서 4.3): 처리 필요, 실시간 상태, 오늘 일정, (부모) 이달 학원비.
@@ -27,6 +27,8 @@ export default function HomeScreen() {
   const now = useNow();
   const d = today(now);
   const { occurrences: all, loaded } = useOccurrences(d, d);
+  const academies = useCollection<Academy>('academies');
+  const needSetup = !!repo && !isChild && !readOnly && academies.loaded && academies.docs.length === 0;
   // 자녀 기기는 본인 일정만 (U-06)
   const occurrences = useMemo(() => (isChild ? visibleFor(all, settings.memberId as MemberId) : all), [all, isChild, settings.memberId]);
   const conflicts = useMemo(() => findConflicts(occurrences), [occurrences]);
@@ -72,25 +74,40 @@ export default function HomeScreen() {
           </Card.Actions>
         </Card>
       ) : (
-        <Columns flex={[1, 1.2, 1]}>
-          {[
-            <View key="now">
-              {!isChild && <TodoCard />}
-              <Text variant="titleMedium" style={{ marginBottom: 8 }}>
-                지금 · {nowLocal(now).slice(11)}
-              </Text>
-              {people.map((m) => (
-                <LiveStatusCard key={m.id} member={m} todays={visibleFor(occurrences, m.id)} now={nowLocal(now)} />
-              ))}
-            </View>,
-            <View key="today">{todayCard}</View>,
-            !isChild && wide ? (
-              <View key="money">
-                <MoneySummaryCard />
-              </View>
-            ) : null,
-          ]}
-        </Columns>
+        <>
+          {needSetup && (
+            <Card style={{ marginBottom: 12 }}>
+              <Card.Title title="처음 설정" subtitle="학원·수강 정보가 아직 없습니다" titleVariant="titleMedium" />
+              <Card.Content>
+                <Text variant="bodyMedium">집·학교 → 학원 → 수강(요일·시간·수강료) 순서로 한 번에 입력할 수 있습니다.</Text>
+              </Card.Content>
+              <Card.Actions>
+                <Button mode="contained" onPress={() => router.push('/setup')}>
+                  처음 설정 시작
+                </Button>
+              </Card.Actions>
+            </Card>
+          )}
+          <Columns flex={[1, 1.2, 1]}>
+            {[
+              <View key="now">
+                {!isChild && <TodoCard />}
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>
+                  지금 · {nowLocal(now).slice(11)}
+                </Text>
+                {people.map((m) => (
+                  <LiveStatusCard key={m.id} member={m} todays={visibleFor(occurrences, m.id)} now={nowLocal(now)} />
+                ))}
+              </View>,
+              <View key="today">{todayCard}</View>,
+              !isChild && wide ? (
+                <View key="money">
+                  <MoneySummaryCard />
+                </View>
+              ) : null,
+            ]}
+          </Columns>
+        </>
       )}
     </Screen>
   );

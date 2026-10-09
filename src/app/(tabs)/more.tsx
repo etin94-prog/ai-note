@@ -43,6 +43,12 @@ export default function MoreScreen() {
         <List.Section>
           <List.Subheader>데이터</List.Subheader>
           <List.Item
+            title="처음 설정"
+            description="집·학교 → 학원 → 수강을 한 흐름으로 입력"
+            left={(p) => <List.Icon {...p} icon="rocket-launch-outline" />}
+            onPress={() => router.push('/setup')}
+          />
+          <List.Item
             title="엑셀 동기화"
             description="내보내 PC에서 고치고 다시 가져오기, 빈 양식"
             left={(p) => <List.Icon {...p} icon="microsoft-excel" />}

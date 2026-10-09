@@ -19,7 +19,9 @@ import {
   SKIP_VALUE,
   type Step,
 } from '@/chat/guided';
+import { CardImport } from '@/components/CardImport';
 import { ImportPreview } from '@/components/ImportPreview';
+import { type CardTxn, parseCardSms } from '@/domain/card';
 import { today } from '@/domain/dates';
 import { parsePasted, type ParsedItem } from '@/domain/kakao';
 import type { Alias } from '@/domain/kakaoImport';
@@ -106,6 +108,7 @@ export function GuidedChat() {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [paste, setPaste] = useState<ParsedItem[] | null>(null);
+  const [cardTx, setCardTx] = useState<CardTxn[] | null>(null);
   const [saving, setSaving] = useState(false);
   const scroll = useRef<ScrollView>(null);
 
@@ -128,6 +131,7 @@ export function GuidedChat() {
   const pickKind = (kind: ChatKind) => {
     setError('');
     setPaste(null);
+    setCardTx(null);
     say('me', KIND_LABELS[kind]);
     advance(absorb({ ...initialState(), kind }, '', ctx));
   };
@@ -144,6 +148,12 @@ export function GuidedChat() {
       if (items.length) {
         setPaste(items);
         say('bot', `결제 안내 ${items.length}건을 찾았어요. 아래에서 확인하고 가져오세요.`);
+        return;
+      }
+      const txns = parseCardSms(t, today());
+      if (txns.length) {
+        setCardTx(txns);
+        say('bot', `카드 승인 문자 ${txns.length}건을 찾았어요. 아래에서 청구와 짝지어 납부로 기록하세요.`);
         return;
       }
       advance(absorb(initialState(), t, ctx, { firstMessage: true }));
@@ -174,6 +184,7 @@ export function GuidedChat() {
   const restart = (msg = '처음부터 다시 할게요.') => {
     setState(initialState());
     setPaste(null);
+    setCardTx(null);
     setError('');
     say('bot', msg);
   };
@@ -228,7 +239,7 @@ export function GuidedChat() {
             {KIND_LABELS[k.kind]}
           </Chip>
         ))}
-        {(state.kind || paste) && (
+        {(state.kind || paste || cardTx) && (
           <Chip compact icon="restart" onPress={() => restart()}>
             처음부터
           </Chip>
@@ -262,6 +273,7 @@ export function GuidedChat() {
           />
         )}
         {paste && <ImportPreview items={paste} onDone={(msg) => restart(msg)} />}
+        {cardTx && <CardImport txns={cardTx} onDone={(msg) => restart(msg)} />}
       </ScrollView>
 
       {step.type === 'ask' && (step.choices.length > 0 || step.optional || step.allowNew) && (
