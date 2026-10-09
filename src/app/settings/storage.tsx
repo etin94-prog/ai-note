@@ -118,8 +118,14 @@ export default function StorageSettingsScreen() {
             buttons={[
               { value: 'github', label: 'GitHub', icon: 'github' },
               { value: 'firebase', label: 'Firebase', icon: 'firebase', disabled: !firebaseReady },
+              { value: 'demo', label: '체험', icon: 'flask-outline' },
             ]}
           />
+          {draft.mode === 'demo' && (
+            <HelperText type="info">
+              체험 모드는 이 기기 브라우저에만 보관되고 가족과 공유되지 않습니다. 써 보기·시연용입니다.
+            </HelperText>
+          )}
           {!firebaseReady && <HelperText type="info">Firebase 설정값이 아직 없습니다 (가이드 2단계 후 사용 가능).</HelperText>}
 
           {draft.mode === 'github' && (

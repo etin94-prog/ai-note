@@ -1,19 +1,32 @@
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { Button, Card, Text } from 'react-native-paper';
 
 import { InstallPrompt } from '@/components/InstallPrompt';
+import { LiveStatusCard } from '@/components/LiveStatusCard';
+import { OccurrenceRow } from '@/components/OccurrenceRow';
 import { Screen } from '@/components/Screen';
 import { SyncIndicator } from '@/components/SyncIndicator';
+import { formatDate, nowLocal, today } from '@/domain/dates';
+import { findConflicts, visibleFor } from '@/domain/schedule';
+import { MEMBERS } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
+import { useNow, useOccurrences } from '@/state/useCollection';
 
-/** 홈 (S-V1, 4.3). Sprint 0: 설치 안내·동기화 상태·저장 모드 연결 진입. */
+/** 홈 (S-V1, 구현계획서 4.3): 실시간 상태, 오늘 일정. 처리 필요(비용)는 Sprint 2. */
 export default function HomeScreen() {
   const { repo } = useRepository();
+  const now = useNow();
+  const d = today(now);
+  const { occurrences, loaded } = useOccurrences(d, d);
+  const conflicts = useMemo(() => findConflicts(occurrences), [occurrences]);
+  const people = MEMBERS.filter((m) => m.role === 'child' || visibleFor(occurrences, m.id).length > 0);
+
   return (
     <Screen>
       <SyncIndicator />
       <InstallPrompt />
-      {!repo && (
+      {!repo ? (
         <Card style={{ marginBottom: 12 }}>
           <Card.Title title="처음 설정" titleVariant="titleMedium" />
           <Card.Content>
@@ -25,13 +38,32 @@ export default function HomeScreen() {
             </Button>
           </Card.Actions>
         </Card>
+      ) : (
+        <>
+          <Text variant="titleMedium" style={{ marginBottom: 8 }}>
+            지금 · {formatDate(d)} {nowLocal(now).slice(11)}
+          </Text>
+          {people.map((m) => (
+            <LiveStatusCard key={m.id} member={m} todays={visibleFor(occurrences, m.id)} now={nowLocal(now)} />
+          ))}
+          <Card mode="outlined" style={{ marginTop: 8 }}>
+            <Card.Title title="오늘 일정" titleVariant="titleMedium" />
+            {occurrences.length === 0 ? (
+              <Card.Content>
+                <Text style={{ opacity: 0.6 }}>{loaded ? '오늘 일정이 없습니다.' : '불러오는 중…'}</Text>
+              </Card.Content>
+            ) : (
+              occurrences.map((o) => <OccurrenceRow key={o.key} occ={o} conflict={conflicts.has(o.key)} />)
+            )}
+            <Card.Actions>
+              <Button onPress={() => router.push('/academies')}>학원 관리</Button>
+              <Button mode="contained-tonal" icon="plus" onPress={() => router.push({ pathname: '/event', params: { date: d } })}>
+                일정 추가
+              </Button>
+            </Card.Actions>
+          </Card>
+        </>
       )}
-      <Card mode="outlined">
-        <Card.Title title="오늘" titleVariant="titleMedium" />
-        <Card.Content>
-          <Text variant="bodyMedium">일정·처리 필요 목록은 Sprint 1~2에서 채워집니다.</Text>
-        </Card.Content>
-      </Card>
     </Screen>
   );
 }

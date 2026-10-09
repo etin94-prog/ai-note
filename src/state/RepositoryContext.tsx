@@ -3,6 +3,7 @@ import { createContext, type PropsWithChildren, useCallback, useContext, useEffe
 import { FirestoreRepository } from '@/data/firebase/FirestoreRepository';
 import { FetchGitHubApi } from '@/data/github/GitHubApi';
 import { GitHubRepository } from '@/data/github/GitHubRepository';
+import { MemoryRepository } from '@/data/memory/MemoryRepository';
 import type { Repository, WriteContext } from '@/data/repository';
 import { getFirebase } from '@/lib/firebase';
 
@@ -26,6 +27,7 @@ const Ctx = createContext<RepositoryState | null>(null);
 const POLL_MS = 60_000;
 
 function buildRepo(s: DeviceSettings): Repository | null {
+  if (s.mode === 'demo') return new MemoryRepository(undefined, 'ai-note.demo-data.v1');
   if (s.mode === 'github' && s.github.token) {
     return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token));
   }

@@ -30,7 +30,9 @@ export function SyncIndicator() {
         ? `전송 중 ${pending.count}건`
         : settings.mode === 'github'
           ? 'GitHub 동기화 완료'
-          : 'Firebase 연결됨';
+          : settings.mode === 'demo'
+            ? '체험 모드 (이 기기에만)'
+            : 'Firebase 연결됨';
   const icon = syncError ? 'alert-circle-outline' : pending.count > 0 ? 'cloud-upload-outline' : 'cloud-check-outline';
 
   return (

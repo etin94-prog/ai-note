@@ -14,6 +14,7 @@ export const PUBLIC_COLLECTIONS = [
   'academies',
   'enrollments',
   'events',
+  'exceptions',
   'aliases',
   'notifications',
 ] as const;

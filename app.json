@@ -38,7 +38,7 @@
     ],
     "experiments": {
       "baseUrl": "/ai-note",
-      "typedRoutes": true,
+      "typedRoutes": false,
       "reactCompiler": true
     }
   }

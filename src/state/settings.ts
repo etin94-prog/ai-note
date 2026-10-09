@@ -2,7 +2,8 @@
  * 기기별 설정 (이 기기에만 저장). GitHub 토큰은 화면에 다시 보여주지 않고
  * 백업·내보내기 파일에도 넣지 않는다 (G-08).
  */
-export type StorageMode = 'github' | 'firebase';
+/** demo = 체험 모드: 메모리에만 저장, 새로고침하면 사라짐 (화면 확인·시연용) */
+export type StorageMode = 'github' | 'firebase' | 'demo';
 
 export interface DeviceSettings {
   mode: StorageMode | null;

@@ -28,7 +28,33 @@ export class MemoryRepository implements Repository {
   private listeners = new Map<Collection, Set<Listener<StoredDoc[]>>>();
   private batches = new Map<string, BatchEntry[]>();
 
-  constructor(private clock: () => string = () => new Date().toISOString()) {}
+  /**
+   * @param persistKey 지정하면 브라우저 localStorage 에 보관 (체험 모드 — 새로고침해도 유지, 이 기기에만)
+   */
+  constructor(
+    private clock: () => string = () => new Date().toISOString(),
+    private persistKey?: string,
+  ) {
+    if (!persistKey) return;
+    try {
+      const raw = globalThis.localStorage?.getItem(persistKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Record<string, StoredDoc[]>;
+      for (const [col, docs] of Object.entries(saved)) this.stores.set(col as Collection, new Map(docs.map((d) => [d.id, d])));
+    } catch {
+      // 손상된 체험 데이터는 무시하고 빈 상태로 시작
+    }
+  }
+
+  private persist() {
+    if (!this.persistKey) return;
+    try {
+      const out = Object.fromEntries([...this.stores].map(([col, s]) => [col, [...s.values()]]));
+      globalThis.localStorage?.setItem(this.persistKey, JSON.stringify(out));
+    } catch {
+      // 저장 공간 부족 등 — 체험 모드라 무시
+    }
+  }
 
   private store(col: Collection): Store {
     let s = this.stores.get(col);
@@ -112,6 +138,7 @@ export class MemoryRepository implements Repository {
       touched.add(op.col);
     }
     this.batches.set(batchId, entries);
+    this.persist();
     touched.forEach((c) => this.emit(c));
     return { ok: true, batchId, conflicts: [] };
   }
@@ -138,6 +165,7 @@ export class MemoryRepository implements Repository {
       touched.add(e.col);
     }
     this.batches.delete(batchId);
+    this.persist();
     touched.forEach((c) => this.emit(c));
     return { reverted, conflicts };
   }
