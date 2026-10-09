@@ -53,7 +53,8 @@ export class FetchGitHubApi implements GitHubApi {
   constructor(
     ref: GitHubRepoRef,
     private readonly token: string,
-    private readonly fetchImpl: typeof fetch = fetch,
+    // 브라우저의 fetch 는 window 에 묶여 있어야 한다 — 객체 필드로 보관 후 그대로 호출하면 "Illegal invocation"
+    private readonly fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
   ) {
     this.base = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
     this.branch = ref.branch ?? 'main';

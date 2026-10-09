@@ -4,7 +4,8 @@ import { Button, Card, Chip, HelperText, SegmentedButtons, Text, TextInput } fro
 import { ulid } from 'ulid';
 
 import { Screen } from '@/components/Screen';
-import { FetchGitHubApi } from '@/data/github/GitHubApi';
+import { FetchGitHubApi, GitHubApiError } from '@/data/github/GitHubApi';
+import { cleanToken, looksLikeToken } from '@/data/github/token';
 import type { StoredDoc } from '@/data/repository';
 import { firebaseConfigFromEnv } from '@/lib/firebase';
 import { useRepository } from '@/state/RepositoryContext';
@@ -44,18 +45,28 @@ export default function StorageSettingsScreen() {
   async function checkGitHub() {
     setCheck(null);
     setCheckError(null);
-    const token = tokenInput || draft.github.token;
+    const token = tokenInput ? cleanToken(tokenInput) : draft.github.token;
     if (!token) return setCheckError('토큰을 입력해 주세요.');
+    if (!looksLikeToken(token)) return setCheckError('토큰 형식이 아닙니다. github_pat_ 로 시작하는 값 전체를 붙여넣어 주세요.');
     try {
-      const api = new FetchGitHubApi({ owner: draft.github.owner, repo: draft.github.repo }, token);
+      const api = new FetchGitHubApi({ owner: draft.github.owner.trim(), repo: draft.github.repo.trim() }, token);
       const tree = await api.readTree();
       const files = tree.notModified ? 0 : tree.entries.filter((e) => e.path.startsWith('data/')).length;
       const exp = api.tokenExpiresAt ? ` · 토큰 만료 ${api.tokenExpiresAt.slice(0, 10)}` : '';
-      setCheck(`연결됨 · 데이터 파일 ${files}개${exp}`);
+      setCheck(`연결됨 · ${draft.github.owner}/${draft.github.repo} · 데이터 파일 ${files}개${exp}`);
     } catch (e) {
+      const status = e instanceof GitHubApiError ? e.status : null;
       const msg = e instanceof Error ? e.message : String(e);
       setCheckError(
-        msg.includes('401') ? '토큰이 올바르지 않거나 만료되었습니다.' : msg.includes('404') ? '저장소를 찾을 수 없거나 토큰에 권한이 없습니다.' : msg,
+        status === 401
+          ? '토큰이 올바르지 않거나 만료·폐기되었습니다. (401)'
+          : status === 403
+            ? '토큰에 이 저장소의 Contents 권한이 없거나 요청 한도를 넘었습니다. (403)'
+            : status === 404
+              ? `저장소 ${draft.github.owner}/${draft.github.repo} 를 찾을 수 없거나, 토큰의 Repository access 에 이 저장소가 없습니다. (404)`
+              : status === 409
+                ? '저장소가 비어 있습니다. README 를 하나 만들어 주세요. (409)'
+                : `연결 실패: ${msg} — 인터넷 연결을 확인해 주세요.`,
       );
     }
   }
@@ -63,7 +74,11 @@ export default function StorageSettingsScreen() {
   function save() {
     const next: DeviceSettings = {
       ...draft,
-      github: { ...draft.github, token: tokenInput || draft.github.token },
+      github: {
+        owner: draft.github.owner.trim(),
+        repo: draft.github.repo.trim(),
+        token: tokenInput ? cleanToken(tokenInput) : draft.github.token,
+      },
     };
     updateSettings(next);
     setTokenInput('');
