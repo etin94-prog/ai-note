@@ -224,7 +224,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             <TextInput mode="outlined" dense label="메모 (수정 사유)" value={memo} onChangeText={setMemo} />
             {error && <HelperText type="error">{error}</HelperText>}
           </Card.Content>
-          <Card.Actions>
+          <Card.Actions style={styles.wrap}>
             <Button textColor="#DC2626" onPress={() => void repo?.update('bills', row.id, { cancelled: !bill.cancelled }, row.doc.version, ctx(bill.cancelled ? '청구 취소 되돌림' : '청구 취소')).then(() => setPanel(null))}>
               {bill.cancelled ? '취소 되돌리기' : '청구 취소'}
             </Button>

@@ -205,7 +205,7 @@ export default function StorageSettingsScreen() {
               </Text>
             ))}
           </Card.Content>
-          <Card.Actions>
+          <Card.Actions style={styles.wrapActions}>
             <Button onPress={() => void refresh()}>지금 가져오기</Button>
             <Button
               mode="contained-tonal"
@@ -266,6 +266,8 @@ export default function StorageSettingsScreen() {
 const styles = StyleSheet.create({
   card: { marginBottom: 12 },
   err: { color: '#DC2626' },
+  // 폰 폭에서 버튼이 화면 밖으로 밀리지 않게 줄바꿈
+  wrapActions: { flexWrap: 'wrap', rowGap: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
   gap: { gap: 8, marginTop: 12 },
   meta: { marginVertical: 8, opacity: 0.7 },
