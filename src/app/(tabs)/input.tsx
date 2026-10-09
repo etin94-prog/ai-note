@@ -1,27 +1,17 @@
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ImportPreview } from '@/components/ImportPreview';
 import { Screen } from '@/components/Screen';
 import { today } from '@/domain/dates';
+import { pickFiles } from '@/lib/files';
 import { parseKakaoExport, parseMessage, parsePasted, type ParsedItem } from '@/domain/kakao';
 import { useRepository } from '@/state/RepositoryContext';
 
-/** 브라우저에서 .txt 여러 개 선택 (파일은 서버로 보내지 않고 이 기기에서만 읽음, X-29) */
-function pickTextFiles(): Promise<{ name: string; text: string }[]> {
-  return new Promise((resolve) => {
-    if (Platform.OS !== 'web') return resolve([]);
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt,text/plain';
-    input.multiple = true;
-    input.onchange = async () => {
-      const files = [...(input.files ?? [])];
-      resolve(await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() }))));
-    };
-    input.click();
-  });
+async function pickTextFiles() {
+  const files = await pickFiles({ accept: '.txt,text/plain', multiple: true });
+  return Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
 }
 
 /**

@@ -37,6 +37,8 @@ export default function RootLayout() {
             <Stack.Screen name="holidays" options={{ title: '방학·휴일' }} />
             <Stack.Screen name="bill" options={{ title: '청구' }} />
             <Stack.Screen name="expense" options={{ title: '기타 지출' }} />
+            <Stack.Screen name="excel" options={{ title: '엑셀 동기화' }} />
+            <Stack.Screen name="admin" options={{ title: '관리자' }} />
           </Stack>
         </RepositoryProvider>
       </PaperProvider>

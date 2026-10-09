@@ -41,9 +41,25 @@ export default function MoreScreen() {
       </List.Section>
       {!isChild && (
         <List.Section>
+          <List.Subheader>데이터</List.Subheader>
+          <List.Item
+            title="엑셀 동기화"
+            description="내보내 PC에서 고치고 다시 가져오기, 빈 양식"
+            left={(p) => <List.Icon {...p} icon="microsoft-excel" />}
+            onPress={() => router.push('/excel')}
+          />
+          <List.Item
+            title="관리자"
+            description="전체 백업·복원, 데이터 초기화"
+            left={(p) => <List.Icon {...p} icon="shield-account-outline" />}
+            onPress={() => router.push('/admin')}
+          />
+        </List.Section>
+      )}
+      {!isChild && (
+        <List.Section>
           <List.Subheader>곧 추가</List.Subheader>
           <List.Item title="알림 설정" left={(p) => <List.Icon {...p} icon="bell-outline" />} />
-          <List.Item title="엑셀 동기화 · 백업" left={(p) => <List.Icon {...p} icon="microsoft-excel" />} />
           <List.Item title="가족 구성원 · 가입 승인" left={(p) => <List.Icon {...p} icon="account-group-outline" />} />
         </List.Section>
       )}
