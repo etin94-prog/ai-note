@@ -196,7 +196,7 @@ export default function StorageSettingsScreen() {
               한 기기에서 [테스트 기록 쓰기] → 다른 기기에서 목록에 나타나는지 확인합니다. GitHub 모드는 최대 1분 또는 [지금 가져오기].
             </Text>
             <Text variant="bodySmall" style={styles.meta}>
-              {settings.mode === 'github' ? `마지막 가져오기: ${lastSyncAt ? lastSyncAt.slice(11, 19) : '-'}` : '실시간 연결'}
+              {settings.mode === 'github' ? `마지막 가져오기: ${lastSyncAt ? new Date(lastSyncAt).toLocaleTimeString('ko-KR') : '-'}` : '실시간 연결'}
               {syncError ? ` · 오류: ${syncError}` : ''}
             </Text>
             {tests.map((t) => (

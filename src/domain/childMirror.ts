@@ -43,7 +43,8 @@ export function childProjection(child: MemberId, src: MirrorSource): MirrorDoc[]
     ...pick('enrollments', enrollments),
     ...pick('events', ownEvents),
     ...pick('exceptions', exceptions),
-    ...pick('places', src.places),
+    // 연결 테스트 기록(spikeTest)은 사본에 넣지 않음
+    ...pick('places', src.places.filter((p) => !(p as unknown as { spikeTest?: boolean }).spikeTest)),
     ...pick('holidays', holidays.map((h) => ({ ...h, memberIds: [child] }))),
   ];
 }
