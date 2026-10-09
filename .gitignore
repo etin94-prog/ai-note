@@ -1,0 +1,54 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+/ios
+/android
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# env (Firebase 웹 설정은 공개값이지만 로컬 파일은 커밋하지 않음 — CI 변수 사용)
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# Claude Code 개인 설정
+.claude/settings.local.json
+
+# ── 개인정보 보호 (Q-11): 실제 가족 데이터 파일은 저장소에 넣지 않는다 ──
+# 엑셀·백업·카톡 내보내기·카드 내역은 fixtures/ (가상 데이터) 외에는 모두 제외
+*.xlsx
+*.xls
+*.csv
+!fixtures/**/*.xlsx
+!fixtures/**/*.csv
+KakaoTalk_*.txt
+*backup*.json
+# 리뷰 번들은 스크립트로 다시 만들 수 있음
+docs/review/review-bundle.md

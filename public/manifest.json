@@ -1,0 +1,18 @@
+{
+  "id": "/ai-note/",
+  "name": "우리집 학원 노트",
+  "short_name": "학원노트",
+  "description": "가족 학원 일정·학원비 납부·환불 기록",
+  "lang": "ko",
+  "start_url": "/ai-note/",
+  "scope": "/ai-note/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#2563EB",
+  "icons": [
+    { "src": "/ai-note/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/ai-note/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/ai-note/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

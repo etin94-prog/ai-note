@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+
+    <!-- PWA: 홈 화면 설치 (D-10, X-12). 경로는 GitHub Pages 하위 경로 /ai-note 기준 -->
+    <link rel="manifest" href="/ai-note/manifest.json" />
+    <link rel="icon" type="image/png" href="/ai-note/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/ai-note/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="학원노트" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- react-native-web 권장 기본 스타일 -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+
+    <!-- 서비스워커: 배포 빌드에서만 (오프라인 재실행, Q-16) -->
+    <script>
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/ai-note/sw.js', { scope: '/ai-note/' }).catch(function () {});
+        });
+      }
+    </script>
+  </head>
+
+  <body>
+    <noscript>이 앱을 쓰려면 JavaScript를 켜 주세요.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

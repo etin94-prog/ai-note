@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// 가족 학원 노트 — Firestore 보안 규칙 (구현계획서 3.3)
+// Sprint 0: 가족 구성원 확인 + 부모 전용 비용 영역 분리까지.
+// Sprint 1~2에서 일정 visibleTo·불변 필드·금전 기록 create-only 규칙과 테스트 14개를 추가한다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /families/{fid} {
+      function account() {
+        return get(/databases/$(database)/documents/families/$(fid)/accountLinks/$(request.auth.uid)).data;
+      }
+      function isMember() {
+        return request.auth != null
+          && exists(/databases/$(database)/documents/families/$(fid)/accountLinks/$(request.auth.uid));
+      }
+      function isParent() {
+        return isMember() && account().role == 'parent';
+      }
+
+      allow read: if isMember();
+
+      // 부모 전용 비용 영역 — 자녀는 읽기·쓰기 모두 불가 (U-05)
+      match /private/finance/{col}/{id} {
+        allow read, write: if isParent();
+      }
+
+      // 가입 요청: 본인 문서만, 역할 필드 금지 (U-02, U-08)
+      match /joinRequests/{uid} {
+        allow create: if request.auth != null && request.auth.uid == uid && !('role' in request.resource.data);
+        allow read, delete: if isParent() || (request.auth != null && request.auth.uid == uid);
+      }
+
+      // 계정 연결·구성원: 부모만 생성·변경 (역할 변경 방지, U-03)
+      match /accountLinks/{uid} {
+        allow read: if isMember();
+        allow write: if isParent();
+      }
+
+      // 그 외 공개 컬렉션 (Sprint 0 임시: 부모 쓰기, 구성원 읽기)
+      match /{col}/{id} {
+        allow read: if isMember() && col != 'private';
+        allow write: if isParent() && col != 'private' && col != 'accountLinks' && col != 'joinRequests';
+      }
+    }
+  }
+}
