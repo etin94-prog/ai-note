@@ -3,7 +3,7 @@ import { Button, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ReminderPump } from '@/components/ReminderPump';
-import { PALETTE, theme } from '@/lib/theme';
+import { FONT_FAMILY, PALETTE, theme } from '@/lib/theme';
 import { RepositoryProvider } from '@/state/RepositoryContext';
 
 /** 내비게이션(머리말·화면 바탕) 색을 앱 테마와 맞춤 */
@@ -16,6 +16,12 @@ const navTheme = {
     border: PALETTE.line,
     primary: theme.colors.primary,
     text: PALETTE.text,
+  },
+  fonts: {
+    regular: { fontFamily: FONT_FAMILY, fontWeight: '400' as const },
+    medium: { fontFamily: FONT_FAMILY, fontWeight: '500' as const },
+    bold: { fontFamily: FONT_FAMILY, fontWeight: '600' as const },
+    heavy: { fontFamily: FONT_FAMILY, fontWeight: '700' as const },
   },
 };
 
@@ -57,6 +63,8 @@ export default function RootLayout() {
               <Stack.Screen name="admin" options={{ title: '관리자' }} />
               <Stack.Screen name="setup" options={{ title: '처음 설정' }} />
               <Stack.Screen name="reminders" options={{ title: '알림 설정' }} />
+            <Stack.Screen name="stats" options={{ title: '통계' }} />
+            <Stack.Screen name="trash" options={{ title: '휴지통' }} />
             </Stack>
           </RepositoryProvider>
         </ThemeProvider>

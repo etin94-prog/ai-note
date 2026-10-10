@@ -53,7 +53,7 @@ export default function MoreScreen() {
           <List.Item
             title="처음 설정"
             description="집·학교 → 학원 → 수강을 한 흐름으로 입력"
-            left={(p) => <List.Icon {...p} icon="rocket-launch-outline" />}
+            left={(p) => <List.Icon {...p} icon="clipboard-check-outline" />}
             onPress={() => router.push('/setup')}
           />
           <List.Item
@@ -61,6 +61,18 @@ export default function MoreScreen() {
             description="내보내 PC에서 고치고 다시 가져오기, 빈 양식"
             left={(p) => <List.Icon {...p} icon="microsoft-excel" />}
             onPress={() => router.push('/excel')}
+          />
+          <List.Item
+            title="통계"
+            description="월별 추이, 올해 누적, 자녀별·학원별 합계"
+            left={(p) => <List.Icon {...p} icon="chart-bar" />}
+            onPress={() => router.push('/stats')}
+          />
+          <List.Item
+            title="휴지통"
+            description="지운 일정·지출을 30일 안에 되살리기"
+            left={(p) => <List.Icon {...p} icon="delete-restore" />}
+            onPress={() => router.push('/trash')}
           />
           <List.Item
             title="관리자"

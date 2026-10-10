@@ -78,6 +78,9 @@ export default function CostScreen() {
           {period.slice(0, 4)}년 {label}
         </Button>
         <IconButton icon="chevron-right" accessibilityLabel="다음 달" onPress={() => setPeriod(addMonths(period, 1))} />
+        <Button compact icon="chart-bar" onPress={() => router.push('/stats')}>
+          통계
+        </Button>
       </View>
       <MemberFilter value={child} onChange={setChild} members={CHILDREN} />
       <View style={styles.chips}>
@@ -358,7 +361,7 @@ function Sum({ label, value, color, sub }: { label: string; value: number; color
       <Text variant="labelSmall" style={styles.dim}>
         {label}
       </Text>
-      <Text variant="titleMedium" style={color ? { color, fontWeight: '700' } : { fontWeight: '700' }}>
+      <Text variant="titleMedium" style={[{ fontWeight: '700', fontVariant: ['tabular-nums'] }, color ? { color } : null]}>
         {won(value)}
       </Text>
       {sub ? (

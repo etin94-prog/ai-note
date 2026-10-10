@@ -4,11 +4,14 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Card, FAB, IconButton, SegmentedButtons, Snackbar, Text } from 'react-native-paper';
 
 import { MemberFilter } from '@/components/MemberChips';
+import { MonthCalendar } from '@/components/MonthCalendar';
 import { OccurrenceDetail } from '@/components/OccurrenceDetail';
 import { OccurrenceRow } from '@/components/OccurrenceRow';
 import { Screen, SplitView } from '@/components/Screen';
 import { TimeGrid } from '@/components/TimeGrid';
 import { addDays, formatDate, mondayOf, today } from '@/domain/dates';
+import { monthGrid } from '@/domain/insights';
+import { addMonths } from '@/domain/money';
 import { findConflicts, visibleFor } from '@/domain/schedule';
 import { memberById, type MemberId, MEMBERS } from '@/domain/types';
 import { buildIcs } from '@/io/ics';
@@ -18,7 +21,7 @@ import { useLayout } from '@/lib/useLayout';
 import { useRepository } from '@/state/RepositoryContext';
 import { useOccurrences } from '@/state/useCollection';
 
-type View3 = 'day' | 'week' | 'grid';
+type View3 = 'day' | 'week' | 'grid' | 'month';
 
 /**
  * 일정: 하루 / 주간 목록 / 주간 시간표 격자, 사람 필터 (S-V1, S-V2, S-V4).
@@ -40,8 +43,10 @@ export default function ScheduleScreen() {
   }
 
   const monday = mondayOf(day);
-  const from = view === 'day' ? day : monday;
-  const to = view === 'day' ? day : addDays(monday, 6);
+  const period = day.slice(0, 7);
+  const grid = useMemo(() => monthGrid(period), [period]);
+  const from = view === 'day' ? day : view === 'month' ? grid[0][0].date : monday;
+  const to = view === 'day' ? day : view === 'month' ? grid[grid.length - 1][6].date : addDays(monday, 6);
   const { occurrences, loaded } = useOccurrences(from, to);
   const week = useOccurrences(monday, addDays(monday, 6));
   const ahead = useOccurrences(today(), addDays(today(), 55));
@@ -52,7 +57,9 @@ export default function ScheduleScreen() {
   const conflicts = useMemo(() => findConflicts(occurrences), [occurrences]);
 
   const step = view === 'day' ? 1 : 7;
-  const days = view === 'day' ? [day] : Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  // 월간은 한 달씩 넘기고, 달력에서 고른 날 하루치 목록을 아래에 보여 준다
+  const move = (dir: 1 | -1) => setDay(view === 'month' ? `${addMonths(period, dir)}-01` : addDays(day, dir * step));
+  const days = view === 'day' || view === 'month' ? [day] : Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const onSelect = wide ? setSelected : undefined;
   // PC 오른쪽 패널 기본 내용: 이번 주 지금 이후 일정
   const nowAt = `${today()}T${new Date().toTimeString().slice(0, 5)}`;
@@ -99,17 +106,18 @@ export default function ScheduleScreen() {
           value={view}
           onValueChange={(v) => setView(v as View3)}
           buttons={[
-            { value: 'day', label: '하루', icon: 'calendar-today' },
-            { value: 'week', label: '주간', icon: 'format-list-bulleted' },
-            { value: 'grid', label: '시간표', icon: 'calendar-week' },
+            { value: 'day', label: '하루' },
+            { value: 'week', label: '주간' },
+            { value: 'grid', label: '시간표' },
+            { value: 'month', label: '월간' },
           ]}
         />
         <View style={styles.nav}>
-          <IconButton icon="chevron-left" accessibilityLabel="이전" onPress={() => setDay(addDays(day, -step))} />
+          <IconButton icon="chevron-left" accessibilityLabel="이전" onPress={() => move(-1)} />
           <Button compact onPress={() => setDay(today())}>
-            {view === 'day' ? formatDate(day) : `${formatDate(monday)} ~ ${formatDate(addDays(monday, 6))}`}
+            {view === 'day' ? formatDate(day) : view === 'month' ? `${period.slice(0, 4)}년 ${Number(period.slice(5))}월` : `${formatDate(monday)} ~ ${formatDate(addDays(monday, 6))}`}
           </Button>
-          <IconButton icon="chevron-right" accessibilityLabel="다음" onPress={() => setDay(addDays(day, step))} />
+          <IconButton icon="chevron-right" accessibilityLabel="다음" onPress={() => move(1)} />
         </View>
         {!isChild && <MemberFilter value={member} onChange={setMember} members={MEMBERS} />}
         {repo && (
@@ -132,6 +140,13 @@ export default function ScheduleScreen() {
         </Card>
       )}
 
+      {view === 'month' && (
+        <Card mode="outlined" style={styles.card}>
+          <Card.Content style={styles.gridPad}>
+            <MonthCalendar period={period} occurrences={shown} selected={day} onSelect={setDay} />
+          </Card.Content>
+        </Card>
+      )}
       {view === 'grid' ? (
         <Card mode="outlined" style={styles.card}>
           <Card.Content style={styles.gridPad}>

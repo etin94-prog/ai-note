@@ -10,10 +10,12 @@ import type { StoredDoc } from '@/data/repository';
 import type { Place } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
+import { useTrash } from '@/state/useTrash';
 
 /** 자주 가는 장소 (S-06): 집·학교 등. 일정 입력에서 골라 쓰고, 지도 열기에 사용 */
 export default function PlacesScreen() {
   const { repo, writeContext, readOnly } = useRepository();
+  const moveToTrash = useTrash();
   const { docs } = useCollection<Place>('places');
   const [editing, setEditing] = useState<StoredDoc<Place> | 'new' | null>(null);
   const [name, setName] = useState('');
@@ -63,7 +65,7 @@ export default function PlacesScreen() {
                 label="삭제"
                 confirmText="지울까요?"
                 onConfirm={async () => {
-                  await repo?.remove('places', editing.id, editing.version, writeContext(`장소 삭제: ${editing.name}`));
+                  await moveToTrash(`장소: ${editing.name}`, [{ col: 'places', doc: editing as unknown as StoredDoc }]);
                   setEditing(null);
                 }}
               />

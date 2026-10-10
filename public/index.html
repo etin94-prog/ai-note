@@ -5,6 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
     <title>%WEB_TITLE%</title>
+    <meta name="description" content="가족 학원 일정·학원비 납부·환불 기록" />
+    <meta name="theme-color" content="#F4F6FA" />
+
+    <!-- 글꼴: Pretendard (한글 가변 글꼴, 필요한 글자만 내려받음). 오프라인이면 기기 기본 글꼴로 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 
     <!-- PWA: 홈 화면 설치 (D-10, X-12). 경로는 GitHub Pages 하위 경로 /ai-note 기준 -->
     <link rel="manifest" href="/ai-note/manifest.json" />
@@ -28,6 +36,31 @@
         display: flex;
         height: 100%;
         flex: 1;
+      }
+    </style>
+    <!-- 디자인 기본 (Taste 점검 10-10): 한글 줄바꿈·숫자·포커스 -->
+    <style id="app-base">
+      body {
+        font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+        background: #f4f6fa;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      /* 한국어: 낱말 중간에서 끊지 않고, 마지막 줄에 한 글자만 남지 않게 */
+      #root [dir] {
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        text-wrap: pretty;
+      }
+      /* 키보드로 이동할 때 지금 위치가 보이게 */
+      :focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: none;
       }
     </style>
 

@@ -34,6 +34,8 @@ export const PRIVATE_COLLECTIONS = [
   'inboundMessages',
   'auditLogs',
   'importBatches',
+  /** 30일 휴지통 (X-08) — 지운 문서 보관 */
+  'trash',
 ] as const;
 
 export type PublicCollection = (typeof PUBLIC_COLLECTIONS)[number];

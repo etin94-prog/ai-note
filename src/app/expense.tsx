@@ -15,6 +15,7 @@ import { DEFAULT_EXPENSE_CATEGORIES, type Expense, won } from '@/domain/money';
 import { CHILDREN, type MemberId } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
+import { useTrash } from '@/state/useTrash';
 
 const LAST = 'ai-note.last-expense.v1';
 
@@ -25,6 +26,7 @@ const LAST = 'ai-note.last-expense.v1';
 export default function ExpenseScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { repo, writeContext, isChild } = useRepository();
+  const moveToTrash = useTrash();
   const { docs } = useCollection<Expense>('expenses');
   const [existing, setExisting] = useState<StoredDoc<Expense> | null>(null);
   const last = (() => {
@@ -92,7 +94,7 @@ export default function ExpenseScreen() {
           label="삭제"
           confirmText="이 지출을 지울까요?"
           onConfirm={async () => {
-            await repo?.remove('expenses', existing.id, existing.version, writeContext(`지출 삭제: ${existing.category} ${won(existing.amount)}`));
+            await moveToTrash(`지출: ${existing.category} ${won(existing.amount)} ${existing.date}`, [{ col: 'expenses', doc: existing as unknown as StoredDoc }]);
             goBack('/cost');
           }}
         />

@@ -59,7 +59,7 @@ export default function HomeScreen() {
   const me = memberById(settings.memberId);
   const header = (
     <View style={{ marginBottom: 12 }}>
-      <Text variant="headlineSmall" style={{ fontWeight: '700', color: PALETTE.text }}>
+      <Text variant="headlineSmall" style={{ fontWeight: '700', color: PALETTE.text, letterSpacing: -0.6 }}>
         {Number(d.slice(5, 7))}월 {Number(d.slice(8))}일 {WEEKDAY_LABELS[now.getDay()]}요일
       </Text>
       {me && (

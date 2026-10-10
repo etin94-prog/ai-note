@@ -1,4 +1,4 @@
-import { MD3LightTheme } from 'react-native-paper';
+import { configureFonts, MD3LightTheme } from 'react-native-paper';
 
 import { THEME_COLOR } from './config';
 
@@ -16,8 +16,16 @@ export const PALETTE = {
   tint: '#EEF3FF',
 } as const;
 
+/** 글꼴: Pretendard(웹 글꼴) → 없으면 기기 기본 한글 글꼴 */
+export const FONT_FAMILY =
+  "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif";
+
+/** 금액·시각처럼 세로로 줄 맞춰 읽는 숫자 */
+export const NUM = { fontVariant: ['tabular-nums' as const] };
+
 export const theme = {
   ...MD3LightTheme,
+  fonts: configureFonts({ config: { fontFamily: FONT_FAMILY } }),
   colors: {
     ...MD3LightTheme.colors,
     primary: THEME_COLOR,

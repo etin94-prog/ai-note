@@ -13,6 +13,7 @@ import { Screen } from '@/components/Screen';
 import type { Collection } from '@/data/repository';
 import { isCardConfirmed } from '@/domain/card';
 import { formatDate, today } from '@/domain/dates';
+import { countSessions, estimateRefund } from '@/domain/insights';
 import {
   type Adjustment,
   type Bill,
@@ -27,6 +28,7 @@ import {
 } from '@/domain/money';
 import { CHILDREN, memberById, type MemberId, PARENTS } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
+import { useOccurrences } from '@/state/useCollection';
 import { useMoney } from '@/state/useMoney';
 
 const R = (o: object) => o as unknown as Record<string, unknown>;
@@ -43,6 +45,9 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
   const { repo, writeContext, settings, isChild } = useRepository();
   const money = useMoney();
   const row = money.rows.find((r) => r.id === params.id);
+  // 환불 예상액 도우미(F-12)용: 이 청구가 수강에서 만들어졌으면 그 달 수업 회차
+  const billPeriod = row?.bill.period ?? today().slice(0, 7);
+  const monthOcc = useOccurrences(`${billPeriod}-01`, `${billPeriod}-31`);
   const me = settings.memberId || 'unknown';
   const [snack, setSnack] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
@@ -131,6 +136,10 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
   if (!row) return <Wrap><Text>{money.loaded ? '청구를 찾을 수 없습니다.' : '불러오는 중…'}</Text></Wrap>;
 
   const { bill, state } = row;
+  // 사유 발생일(date1) 기준 참고 예상액 — 수강 청구일 때만
+  const sessions = bill.enrollmentId ? monthOcc.occurrences.filter((o) => o.source === 'enrollment' && o.sourceId === bill.enrollmentId && o.date.startsWith(bill.period)) : [];
+  const counted = countSessions(sessions, date1);
+  const estimate = panel === 'refund' && counted.total > 0 && state.paid > 0 ? estimateRefund(state.paid, counted.total, counted.done) : null;
   const info = money.paymentInfos.find((i) => i.id === bill.academyId);
   const voidRecord = async (col: Collection, id: string, version: number, label: string) => {
     await repo?.update(col, id, { voided: { by: me, at: new Date().toISOString(), reason: '정정' } }, version, ctx(label));
@@ -372,6 +381,17 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             <ChipSelect options={REASONS} value={reason} onChange={setReason} />
             <DateField label="사유 발생일 (퇴원·휴원 결정일)" value={date1} onChange={setDate1} />
             <MoneyInput label="요청 금액" value={amount} onChange={setAmount} quick={false} />
+            {estimate && (
+              <View style={styles.estimate}>
+                <Text variant="labelLarge">참고 계산: {wonFull(estimate.amount)}</Text>
+                <Text variant="bodySmall" style={styles.dim}>
+                  낸 금액 {wonFull(state.paid)} × {estimate.rule}
+                </Text>
+                <Button compact mode="outlined" onPress={() => setAmount(estimate.amount)} style={styles.estimateBtn}>
+                  이 금액 넣기
+                </Button>
+              </View>
+            )}
             <TextInput mode="outlined" dense label="메모" value={text1} onChangeText={setText1} />
             <HelperText type="info">학원법상 반환사유 발생일부터 5일 이내 반환이 기준입니다(참고). 정확한 금액은 학원과 확인하세요.</HelperText>
             {error && <HelperText type="error">{error}</HelperText>}
@@ -409,6 +429,8 @@ function EmbeddedWrap({ children }: PropsWithChildren) {
 }
 
 const styles = StyleSheet.create({
+  estimate: { backgroundColor: '#EEF3FF', borderRadius: 12, padding: 12, gap: 4 },
+  estimateBtn: { alignSelf: 'flex-start', marginTop: 4 },
   card: { marginBottom: 12 },
   gap: { marginVertical: 6 },
   gapCol: { gap: 8 },

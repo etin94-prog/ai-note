@@ -13,10 +13,12 @@ import { formatDate } from '@/domain/dates';
 import { CHILDREN, type Holiday, memberById, type MemberId } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
+import { useTrash } from '@/state/useTrash';
 
 /** 방학·휴일 (S-05, S-14): 아이(학교)별 기간 → 등하교·학원 수업을 시간표에서 뺌 */
 export default function HolidaysScreen() {
   const { repo, writeContext, readOnly } = useRepository();
+  const moveToTrash = useTrash();
   const { docs } = useCollection<Holiday>('holidays');
   const [editing, setEditing] = useState<StoredDoc<Holiday> | 'new' | null>(null);
   const [form, setForm] = useState<Holiday>({ name: '', memberIds: [], start: '', end: '', skipSchool: true, skipClass: false });
@@ -87,7 +89,7 @@ export default function HolidaysScreen() {
                 label="삭제"
                 confirmText="지울까요?"
                 onConfirm={async () => {
-                  await repo?.remove('holidays', editing.id, editing.version, writeContext(`방학·휴일 삭제: ${editing.name}`));
+                  await moveToTrash(`방학·휴일: ${editing.name}`, [{ col: 'holidays', doc: editing as unknown as StoredDoc }]);
                   setEditing(null);
                 }}
               />

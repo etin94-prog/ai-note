@@ -16,6 +16,7 @@ import { moveEventExceptions } from '@/domain/editScope';
 import { EVENT_KIND_LABELS, type EventKind, type MemberId, type OccurrenceException, type Place, type ScheduleEvent, type Weekday } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
+import { useTrash } from '@/state/useTrash';
 
 const KINDS = (Object.keys(EVENT_KIND_LABELS) as EventKind[]).filter((k) => k !== 'class');
 const SCOPES = [
@@ -32,6 +33,7 @@ export default function EventScreen() {
   const me = (settings.memberId || 'mom') as MemberId;
   const places = useCollection<Place>('places');
   const exceptions = useCollection<OccurrenceException>('exceptions');
+  const moveToTrash = useTrash();
 
   // 휴강 회차에서 [보강 추가]로 들어오면 종류·제목·대상 미리 채움 (S-04)
   const [kind, setKind] = useState<EventKind>(params.makeupFor ? 'makeup' : 'appointment');
@@ -125,15 +127,13 @@ export default function EventScreen() {
 
   async function remove() {
     if (!repo || !existing) return;
-    // 일정과 그 회차 기록(휴강·준비물 체크)을 함께 지움
+    // 일정과 그 회차 기록(휴강·준비물 체크)을 함께 휴지통으로 (30일 안에 되살릴 수 있음)
     const prefix = `event:${existing.id}@`;
-    await repo.applyBatch(
-      [
-        { type: 'delete', col: 'events', id: existing.id, expectVersion: existing.version },
-        ...exceptions.docs.filter((e) => e.id.startsWith(prefix)).map((e) => ({ type: 'delete' as const, col: 'exceptions' as const, id: e.id, expectVersion: e.version })),
-      ],
-      writeContext(`일정 삭제: ${existing.title}`),
-    );
+    const ok = await moveToTrash(`일정: ${existing.title} ${existing.date}`, [
+      { col: 'events', doc: existing as unknown as StoredDoc },
+      ...exceptions.docs.filter((e) => e.id.startsWith(prefix)).map((e) => ({ col: 'exceptions' as const, doc: e as unknown as StoredDoc })),
+    ]);
+    if (!ok) return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
     goBack('/schedule');
   }
 
