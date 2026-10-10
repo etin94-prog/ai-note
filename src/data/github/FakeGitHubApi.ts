@@ -12,9 +12,22 @@ export class FakeGitHubApi implements GitHubApi {
   commits: { sha: string; message: string; paths: string[] }[] = [];
   /** 테스트에서 호출 수 확인용 */
   calls = { readTree: 0, readBlob: 0, commit: 0 };
+  /** 통신 지연 흉내 (ms) — 느린 네트워크에서 화면이 어떻게 보이는지 확인용 */
+  latencyMs = 0;
+  /** 다음 n 번의 commit 을 통신 오류로 실패시킴 */
+  failCommits = 0;
+
+  constructor(latencyMs = 0) {
+    this.latencyMs = latencyMs;
+  }
+
+  private wait() {
+    return this.latencyMs ? new Promise<void>((r) => setTimeout(r, this.latencyMs)) : Promise.resolve();
+  }
 
   async readTree(etag?: string): Promise<TreeResult> {
     this.calls.readTree++;
+    await this.wait();
     if (etag === this.head) return { notModified: true };
     return {
       notModified: false,
@@ -32,6 +45,11 @@ export class FakeGitHubApi implements GitHubApi {
 
   async commit(changes: FileChange[], message: string, parentSha: string): Promise<CommitResult> {
     this.calls.commit++;
+    await this.wait();
+    if (this.failCommits > 0) {
+      this.failCommits--;
+      throw new TypeError('Failed to fetch');
+    }
     if (parentSha !== this.head) return { ok: false, reason: 'non-fast-forward' };
     for (const c of changes) {
       if (c.content === null) this.files.delete(c.path);

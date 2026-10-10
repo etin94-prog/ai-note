@@ -30,6 +30,7 @@ import { CHILDREN, memberById, type MemberId, PARENTS } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useOccurrences } from '@/state/useCollection';
 import { useMoney } from '@/state/useMoney';
+import { useBusy } from '@/lib/useBusy';
 
 const R = (o: object) => o as unknown as Record<string, unknown>;
 const REASONS = (Object.keys(REFUND_REASON_LABELS) as RefundReason[]).map((r) => ({ value: r, label: REFUND_REASON_LABELS[r] }));
@@ -43,6 +44,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
   const params = { id, period: initialPeriod };
   const Wrap = embedded ? EmbeddedWrap : Screen;
   const { repo, writeContext, settings, isChild } = useRepository();
+  const [busy, run] = useBusy();
   const money = useMoney();
   const row = money.rows.find((r) => r.id === params.id);
   // 환불 예상액 도우미(F-12)용: 이 청구가 수강에서 만들어졌으면 그 달 수업 회차
@@ -126,7 +128,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
         <TextInput mode="outlined" dense label="이달 결제 링크 (카톡·문자로 받은 링크, 선택)" value={payUrl} onChangeText={setPayUrl} autoCapitalize="none" style={styles.gap} />
         <TextInput mode="outlined" dense label="메모" value={memo} onChangeText={setMemo} style={styles.gap} />
         {error && <HelperText type="error">{error}</HelperText>}
-        <Button mode="contained" onPress={() => void create()}>
+        <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(create)}>
           저장
         </Button>
       </Wrap>
@@ -254,7 +256,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
               {bill.cancelled ? '취소 되돌리기' : '청구 취소'}
             </Button>
             <Button onPress={() => setPanel(null)}>닫기</Button>
-            <Button mode="contained" onPress={() => void saveEdit()}>
+            <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(saveEdit)}>
               저장
             </Button>
           </Card.Actions>
@@ -294,7 +296,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             {error && <HelperText type="error">{error}</HelperText>}
             <View style={styles.row}>
               <Button onPress={() => setPanel(null)}>닫기</Button>
-              <Button mode="contained" onPress={() => void addAdjustment()}>저장</Button>
+              <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(addAdjustment)}>저장</Button>
             </View>
           </Card.Content>
         ) : (
@@ -340,7 +342,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
                   {error && <HelperText type="error">{error}</HelperText>}
                   <View style={styles.row}>
                     <Button onPress={() => setPanel(null)}>닫기</Button>
-                    <Button mode="contained" onPress={() => void addReceipt(refund.id)}>저장</Button>
+                    <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(() => addReceipt(refund.id))}>저장</Button>
                   </View>
                 </View>
               ) : typeof panel === 'object' && panel && 'closeFor' in panel && panel.closeFor === refund.id ? (
@@ -351,7 +353,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
                   <View style={styles.row}>
                     <Button onPress={() => setPanel(null)}>닫기</Button>
                     <Button onPress={() => void patchRefund(refund.id, { agreed: amount || null }, '환불 합의액')}>합의액만 저장</Button>
-                    <Button mode="contained" onPress={() => void patchRefund(refund.id, { agreed: amount || null, manualClose: { reason: text1.trim() || '합의', by: me, at: new Date().toISOString() } }, '환불 종결')}>
+                    <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(() => patchRefund(refund.id, { agreed: amount || null, manualClose: { reason: text1.trim() || '합의', by: me, at: new Date().toISOString() } }, '환불 종결'))}>
                       종결
                     </Button>
                   </View>
@@ -397,7 +399,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             {error && <HelperText type="error">{error}</HelperText>}
             <View style={styles.row}>
               <Button onPress={() => setPanel(null)}>닫기</Button>
-              <Button mode="contained" onPress={() => void addRefund()}>저장</Button>
+              <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(addRefund)}>저장</Button>
             </View>
           </Card.Content>
         ) : (

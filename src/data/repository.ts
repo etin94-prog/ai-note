@@ -90,9 +90,13 @@ export interface RevertResult {
 }
 
 export interface PendingState {
+  /** 서버로 보내는 중인 저장 건수 */
   count: number;
+  /** 보내지 못해 되돌린 저장 건수 (사용자가 확인하면 0으로) */
   failed: number;
   online: boolean;
+  /** 마지막 실패 내용 (사람이 읽는 문장) */
+  lastError?: string;
 }
 
 export type Unsubscribe = () => void;
@@ -126,4 +130,6 @@ export interface Repository {
   pending(listener: Listener<PendingState>): Unsubscribe;
   /** 전송 대기 작업을 모두 보낼 때까지 최대 timeoutMs 대기. 다 보냈으면 true (U-12). */
   flush(timeoutMs: number): Promise<boolean>;
+  /** 저장 실패 알림을 확인했음 (failed·lastError 초기화). 실패가 생길 수 없는 저장소는 없어도 됨 */
+  ackFailures?(): void;
 }

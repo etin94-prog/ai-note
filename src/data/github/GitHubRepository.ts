@@ -29,7 +29,16 @@ export interface GitHubRepositoryOptions {
   clock?: () => string;
   /** 다른 기기가 먼저 커밋했을 때 다시 시도하는 횟수 */
   maxRetries?: number;
+  /**
+   * 화면 먼저 반영 (앱에서 켬): 저장하면 바로 화면에 보이고 GitHub 전송은 뒤에서 한다.
+   * 전송에 실패하면 되돌리고 pending 의 failed·lastError 로 알린다.
+   */
+  optimistic?: boolean;
+  /** 통신 오류 때 다시 시도하기 전 기다리는 시간(ms). 테스트에서 0 */
+  retryDelayMs?: number;
 }
+
+class ConflictError extends Error {}
 
 /**
  * GitHub 모드 저장소 (Requirement 1.5, 구현계획서 3.2).
@@ -51,6 +60,12 @@ export class GitHubRepository implements Repository {
   private clock: () => string;
   private maxRetries: number;
   private writeLock: Promise<unknown> = Promise.resolve();
+  /** 아직 GitHub 에 보내지 않았지만 화면에는 먼저 보여 주는 내용 (path → 문서, 삭제는 null) */
+  private overlay = new Map<string, { col: Collection; doc: StoredDoc | null }>();
+  private optimistic: boolean;
+  private retryDelayMs: number;
+  private failed = 0;
+  private lastError: string | undefined;
 
   constructor(
     private readonly api: GitHubApi,
@@ -58,6 +73,8 @@ export class GitHubRepository implements Repository {
   ) {
     this.clock = opts.clock ?? (() => new Date().toISOString());
     this.maxRetries = opts.maxRetries ?? 3;
+    this.optimistic = opts.optimistic ?? false;
+    this.retryDelayMs = opts.retryDelayMs ?? 1500;
   }
 
   /** 최신 상태 가져오기. 바뀐 파일만 다시 받는다. 화면 복귀·주기 확인에서 호출. */
@@ -92,8 +109,17 @@ export class GitHubRepository implements Repository {
     return this.loaded;
   }
 
+  /** 화면에 보이는 문서 = 받아 온 내용 위에 아직 보내는 중인 변경을 덮은 것 */
+  private viewDoc(path: string): StoredDoc | undefined {
+    const o = this.overlay.get(path);
+    return o ? (o.doc ?? undefined) : this.cache.get(path)?.doc;
+  }
+
   private docs(col: Collection): StoredDoc[] {
-    return [...this.cache.values()].filter((e) => e.col === col).map((e) => e.doc);
+    const out: StoredDoc[] = [];
+    for (const [path, e] of this.cache) if (e.col === col && !this.overlay.has(path)) out.push(e.doc);
+    for (const o of this.overlay.values()) if (o.col === col && o.doc) out.push(o.doc);
+    return out;
   }
 
   private emit(col: Collection) {
@@ -116,7 +142,7 @@ export class GitHubRepository implements Repository {
 
   async get<T>(col: Collection, id: string) {
     await this.ensureLoaded();
-    return this.cache.get(docPath(col, id))?.doc as StoredDoc<T> | undefined;
+    return this.viewDoc(docPath(col, id)) as StoredDoc<T> | undefined;
   }
 
   async list<T>(col: Collection) {
@@ -162,7 +188,86 @@ export class GitHubRepository implements Repository {
   }
 
   applyBatch(ops: Op[], ctx: WriteContext): Promise<BatchResult> {
+    if (this.optimistic) return this.applyOptimistic(ops, ctx);
     return this.trackPending(() => this.serialize(() => this.applyBatchNow(ops, ctx)));
+  }
+
+  /**
+   * 화면 먼저 반영: 지금 보이는 내용 기준으로 검사하고 바로 화면에 적용한 뒤 돌려준다.
+   * GitHub 커밋은 순서대로 뒤에서 진행 (전송 중 건수는 pending 으로 알림).
+   */
+  private async applyOptimistic(ops: Op[], ctx: WriteContext): Promise<BatchResult> {
+    const batchId = ulid();
+    await this.ensureLoaded();
+    const conflicts: BatchResult['conflicts'] = [];
+    for (const op of ops) {
+      const cur = this.viewDoc(docPath(op.col, op.id));
+      if (op.type === 'create' && cur) conflicts.push({ col: op.col, id: op.id, reason: 'exists' });
+      if (op.type !== 'create' && !cur) conflicts.push({ col: op.col, id: op.id, reason: 'missing' });
+      if (op.type !== 'create' && cur && cur.version !== op.expectVersion) conflicts.push({ col: op.col, id: op.id, reason: 'conflict' });
+    }
+    if (conflicts.length) return { ok: false, batchId, conflicts };
+
+    const now = this.clock();
+    const planned = ops.map((op) => {
+      const path = docPath(op.col, op.id);
+      const before = this.viewDoc(path) ?? null;
+      const after = op.type === 'create' ? newDoc(op.id, op.data, ctx, now) : op.type === 'update' ? patchDoc(before!, op.patch, ctx, now) : null;
+      return { col: op.col, id: op.id, path, before, after };
+    });
+    for (const p of planned) this.overlay.set(p.path, { col: p.col, doc: p.after });
+    const cols = new Set(planned.map((p) => p.col));
+    cols.forEach((c) => this.emit(c));
+    this.batches.set(
+      batchId,
+      planned.map((p) => ({ col: p.col, id: p.id, before: p.before, afterVersion: p.after?.version ?? null })),
+    );
+
+    void this.trackPending(() =>
+      this.serialize(async () => {
+        try {
+          await this.commitInBackground(planned, commitMessage(ctx));
+        } catch (e) {
+          // 보내지 못함 → 화면을 되돌리고 알림
+          for (const p of planned) if (this.overlay.get(p.path)?.doc === p.after) this.overlay.delete(p.path);
+          this.batches.delete(batchId);
+          this.failed++;
+          this.lastError = `${ctx.label} — ${e instanceof Error ? e.message : String(e)}`;
+          cols.forEach((c) => this.emit(c));
+        }
+      }),
+    );
+    return { ok: true, batchId, conflicts: [] };
+  }
+
+  private async commitInBackground(planned: { col: Collection; id: string; path: string; before: StoredDoc | null; after: StoredDoc | null }[], message: string) {
+    let netErrors = 0;
+    for (let attempt = 0; attempt <= this.maxRetries; ) {
+      try {
+        await this.sync();
+        // 그 사이 다른 기기가 같은 문서를 바꿨으면 덮어쓰지 않는다
+        const changed = planned.some((p) => (this.cache.get(p.path)?.doc.version ?? null) !== (p.before?.version ?? null));
+        if (changed) throw new ConflictError('다른 기기에서 같은 항목을 먼저 바꿔서 저장하지 못했습니다. 다시 확인해 주세요.');
+        if (await this.commitPlanned(planned, message)) {
+          let cleared = false;
+          for (const p of planned) {
+            if (this.overlay.get(p.path)?.doc === p.after) {
+              this.overlay.delete(p.path);
+              cleared = true;
+            }
+          }
+          if (cleared) new Set(planned.map((p) => p.col)).forEach((c) => this.emit(c));
+          return;
+        }
+        attempt++; // 다른 기기가 먼저 커밋 → 최신 받아 다시
+      } catch (e) {
+        if (e instanceof ConflictError) throw e;
+        // 통신 오류는 잠깐 기다렸다가 두 번까지 다시
+        if (++netErrors > 2) throw new Error(`GitHub 에 보내지 못했습니다 (${e instanceof Error ? e.message : String(e)})`);
+        if (this.retryDelayMs) await new Promise((r) => setTimeout(r, this.retryDelayMs * netErrors));
+      }
+    }
+    throw new Error('다른 기기의 저장과 계속 겹칩니다. 잠시 후 다시 시도하세요.');
   }
 
   private async applyBatchNow(ops: Op[], ctx: WriteContext): Promise<BatchResult> {
@@ -255,14 +360,24 @@ export class GitHubRepository implements Repository {
     );
   }
 
+  private pendingState(): PendingState {
+    return { count: this.inFlight, failed: this.failed, online: true, ...(this.lastError ? { lastError: this.lastError } : {}) };
+  }
+
+  ackFailures() {
+    this.failed = 0;
+    this.lastError = undefined;
+    this.emitPending();
+  }
+
   private emitPending() {
-    const state: PendingState = { count: this.inFlight, failed: 0, online: true };
+    const state = this.pendingState();
     this.pendingListeners.forEach((l) => l(state));
   }
 
   pending(listener: Listener<PendingState>): Unsubscribe {
     this.pendingListeners.add(listener);
-    listener({ count: this.inFlight, failed: 0, online: true });
+    listener(this.pendingState());
     return () => this.pendingListeners.delete(listener);
   }
 

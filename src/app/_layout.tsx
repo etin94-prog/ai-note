@@ -3,6 +3,7 @@ import { Button, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ReminderPump } from '@/components/ReminderPump';
+import { SavingBar } from '@/components/SavingBar';
 import { FONT_FAMILY, PALETTE, theme } from '@/lib/theme';
 import { RepositoryProvider } from '@/state/RepositoryContext';
 
@@ -66,6 +67,7 @@ export default function RootLayout() {
             <Stack.Screen name="stats" options={{ title: '통계' }} />
             <Stack.Screen name="trash" options={{ title: '휴지통' }} />
             </Stack>
+            <SavingBar />
           </RepositoryProvider>
         </ThemeProvider>
       </PaperProvider>

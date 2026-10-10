@@ -14,10 +14,12 @@ import { CHILDREN, type Holiday, memberById, type MemberId } from '@/domain/type
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { useTrash } from '@/state/useTrash';
+import { useBusy } from '@/lib/useBusy';
 
 /** 방학·휴일 (S-05, S-14): 아이(학교)별 기간 → 등하교·학원 수업을 시간표에서 뺌 */
 export default function HolidaysScreen() {
   const { repo, writeContext, readOnly } = useRepository();
+  const [busy, run] = useBusy();
   const moveToTrash = useTrash();
   const { docs } = useCollection<Holiday>('holidays');
   const [editing, setEditing] = useState<StoredDoc<Holiday> | 'new' | null>(null);
@@ -95,7 +97,7 @@ export default function HolidaysScreen() {
               />
             )}
             <Button onPress={() => setEditing(null)}>취소</Button>
-            <Button mode="contained" onPress={save} disabled={!valid}>
+            <Button mode="contained" loading={busy} onPress={() => run(save)} disabled={!valid || busy}>
               저장
             </Button>
           </Card.Actions>

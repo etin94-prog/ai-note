@@ -16,6 +16,7 @@ import { CHILDREN, type MemberId } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { useTrash } from '@/state/useTrash';
+import { useBusy } from '@/lib/useBusy';
 
 const LAST = 'ai-note.last-expense.v1';
 
@@ -26,6 +27,7 @@ const LAST = 'ai-note.last-expense.v1';
 export default function ExpenseScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { repo, writeContext, isChild } = useRepository();
+  const [busy, run] = useBusy();
   const moveToTrash = useTrash();
   const { docs } = useCollection<Expense>('expenses');
   const [existing, setExisting] = useState<StoredDoc<Expense> | null>(null);
@@ -86,7 +88,7 @@ export default function ExpenseScreen() {
       <DateField label="날짜" value={date} onChange={setDate} />
       <TextInput mode="outlined" dense label="메모 (선택)" value={memo} onChangeText={setMemo} style={styles.gap} />
       {error && <HelperText type="error">{error}</HelperText>}
-      <Button mode="contained" onPress={() => void save()} style={styles.gap}>
+      <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(save)} style={styles.gap}>
         저장
       </Button>
       {existing && (

@@ -14,6 +14,7 @@ import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { MoneyInput } from '@/components/MoneyInput';
 import { type EnrollmentCost, type PayCycle, type PayTiming, won } from '@/domain/money';
+import { useBusy } from '@/lib/useBusy';
 
 const STATUS = [
   { value: 'active' as const, label: '수강 중' },
@@ -25,6 +26,7 @@ const STATUS = [
 export default function EnrollmentScreen() {
   const { id, academyId } = useLocalSearchParams<{ id?: string; academyId: string }>();
   const { repo, writeContext, isChild } = useRepository();
+  const [busy, run] = useBusy();
   const costs = useCollection<EnrollmentCost>('enrollmentCosts');
   const myCosts = costs.docs.filter((c) => c.enrollmentId === id).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1));
   // 비용 조건 (A-03, A-08) — 부모만
@@ -202,7 +204,7 @@ export default function EnrollmentScreen() {
       )}
 
       {error && <HelperText type="error">{error}</HelperText>}
-      <Button mode="contained" onPress={save} style={styles.save} disabled={!academy}>
+      <Button mode="contained" loading={busy} onPress={() => run(save)} style={styles.save} disabled={!academy || busy}>
         저장
       </Button>
     </Screen>

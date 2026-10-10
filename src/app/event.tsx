@@ -17,6 +17,7 @@ import { EVENT_KIND_LABELS, type EventKind, type MemberId, type OccurrenceExcept
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { useTrash } from '@/state/useTrash';
+import { useBusy } from '@/lib/useBusy';
 
 const KINDS = (Object.keys(EVENT_KIND_LABELS) as EventKind[]).filter((k) => k !== 'class');
 const SCOPES = [
@@ -29,6 +30,7 @@ const SCOPES = [
 export default function EventScreen() {
   const params = useLocalSearchParams<{ id?: string; date?: string; makeupFor?: string; title?: string; targets?: string; start?: string; end?: string }>();
   const { repo, settings, writeContext } = useRepository();
+  const [busy, run] = useBusy();
   const [existing, setExisting] = useState<StoredDoc<ScheduleEvent> | null>(null);
   const me = (settings.memberId || 'mom') as MemberId;
   const places = useCollection<Place>('places');
@@ -220,7 +222,7 @@ export default function EventScreen() {
       )}
 
       {error && <HelperText type="error">{error}</HelperText>}
-      <Button mode="contained" onPress={save} style={styles.save}>
+      <Button mode="contained" loading={busy} disabled={busy} onPress={() => run(save)} style={styles.save}>
         저장
       </Button>
       {existing && (

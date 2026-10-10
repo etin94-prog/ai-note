@@ -20,6 +20,7 @@ import {
 } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
+import { useBusy } from '@/lib/useBusy';
 
 const PAY_TYPES = Object.keys(PAY_TYPE_LABELS) as PayType[];
 
@@ -27,6 +28,7 @@ const PAY_TYPES = Object.keys(PAY_TYPE_LABELS) as PayType[];
 export default function AcademyScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { repo, writeContext, isChild, readOnly } = useRepository();
+  const [busy, run] = useBusy();
   const locked = isChild || readOnly;
   const enrollments = useCollection<Enrollment>('enrollments');
 
@@ -154,7 +156,7 @@ export default function AcademyScreen() {
       )}
 
       {error && <HelperText type="error">{error}</HelperText>}
-      {!locked && (<Button mode="contained" onPress={() => void save()} style={styles.gap}>
+      {!locked && (<Button mode="contained" loading={busy} disabled={busy} onPress={() => run(save)} style={styles.gap}>
         {academy ? '저장' : '저장하고 수강 등록하기'}
       </Button>)}
 

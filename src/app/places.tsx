@@ -11,10 +11,12 @@ import type { Place } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { useTrash } from '@/state/useTrash';
+import { useBusy } from '@/lib/useBusy';
 
 /** 자주 가는 장소 (S-06): 집·학교 등. 일정 입력에서 골라 쓰고, 지도 열기에 사용 */
 export default function PlacesScreen() {
   const { repo, writeContext, readOnly } = useRepository();
+  const [busy, run] = useBusy();
   const moveToTrash = useTrash();
   const { docs } = useCollection<Place>('places');
   const [editing, setEditing] = useState<StoredDoc<Place> | 'new' | null>(null);
@@ -71,7 +73,7 @@ export default function PlacesScreen() {
               />
             )}
             <Button onPress={() => setEditing(null)}>취소</Button>
-            <Button mode="contained" onPress={save} disabled={!name.trim()}>
+            <Button mode="contained" loading={busy} onPress={() => run(save)} disabled={!name.trim() || busy}>
               저장
             </Button>
           </Card.Actions>

@@ -101,9 +101,12 @@ export function PaymentDialog({
   }
 
   const over = target ? amount - target.state.remaining : 0;
+  // 닫히면 창을 바로 없앤다 — 닫힘 애니메이션이 끝나지 않으면(탭을 가린 순간 등) 투명한 창이 남아 화면 클릭을 가로챘다
+  if (!target) return null;
+
   return (
     <Portal>
-      <Dialog visible={!!target} onDismiss={onDismiss}>
+      <Dialog visible onDismiss={onDismiss}>
         <Dialog.Title>납부 기록</Dialog.Title>
         {target && (
           <Dialog.Content style={styles.gap}>

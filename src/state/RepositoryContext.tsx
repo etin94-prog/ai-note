@@ -3,6 +3,7 @@ import { createContext, type PropsWithChildren, useCallback, useContext, useEffe
 import { FirestoreRepository } from '@/data/firebase/FirestoreRepository';
 import { syncChildMirror, type MirrorResult } from '@/data/github/childMirrorSync';
 import { FetchGitHubApi } from '@/data/github/GitHubApi';
+import { FakeGitHubApi } from '@/data/github/FakeGitHubApi';
 import { GitHubRepository } from '@/data/github/GitHubRepository';
 import { MemoryRepository } from '@/data/memory/MemoryRepository';
 import type { Collection, Repository, WriteContext } from '@/data/repository';
@@ -45,9 +46,15 @@ const MIRROR_DEBOUNCE_MS = 5_000;
 const MIRROR_COLLECTIONS: Collection[] = ['academies', 'enrollments', 'events', 'exceptions', 'places', 'holidays', 'reminderPolicies'];
 
 export function buildRepo(s: DeviceSettings): Repository | null {
-  if (s.mode === 'demo') return new MemoryRepository(undefined, 'ai-note.demo-data.v1');
+  if (s.mode === 'demo') {
+    // 시험용: 느린 네트워크에서 저장 중 표시가 어떻게 보이는지 확인 (값 = 지연 ms, 새로고침하면 데이터는 사라짐)
+    const slow = Number(globalThis.localStorage?.getItem('ai-note.debug-latency') ?? 0);
+    if (slow > 0) return new GitHubRepository(new FakeGitHubApi(slow), { optimistic: true });
+    return new MemoryRepository(undefined, 'ai-note.demo-data.v1');
+  }
   if (s.mode === 'github' && s.github.token) {
-    return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token));
+    // 저장하면 화면에 먼저 반영하고 GitHub 전송은 뒤에서 (전송 중·실패는 SavingBar 가 알림)
+    return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token), { optimistic: true });
   }
   if (s.mode === 'firebase' && s.firebase.familyId) {
     const fb = getFirebase();
