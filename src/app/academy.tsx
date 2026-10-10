@@ -134,7 +134,7 @@ export default function AcademyScreen() {
           <Label>납부 방법</Label>
           <ChipSelect options={PAY_TYPES.map((t) => ({ value: t, label: PAY_TYPE_LABELS[t] }))} value={payType} onChange={setPayType} />
           {payType === 'monthlyLink' && (
-            <HelperText type="info">매달 카톡·문자로 오는 링크는 그달 청구서에 붙여넣습니다 (Sprint 2·3).</HelperText>
+            <HelperText type="info">매달 카톡·문자로 오는 결제 링크는 입력 → 붙여넣기로 넣으면 그달 청구에 붙습니다.</HelperText>
           )}
           {link && <TextInput mode="outlined" dense label="결제 링크 URL" value={url} onChangeText={setUrl} autoCapitalize="none" style={styles.gap} />}
           {app && <TextInput mode="outlined" dense label="앱 이름" value={appName} onChangeText={setAppName} style={styles.gap} />}

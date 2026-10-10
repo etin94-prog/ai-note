@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 
+import { DashboardTiles } from '@/components/DashboardTiles';
+import { InboxBanner } from '@/components/InboxBanner';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { LiveStatusCard } from '@/components/LiveStatusCard';
 import { MoneySummaryCard } from '@/components/MoneySummaryCard';
@@ -12,7 +14,8 @@ import { SyncIndicator } from '@/components/SyncIndicator';
 import { TodoCard } from '@/components/TodoCard';
 import { formatDate, nowLocal, today } from '@/domain/dates';
 import { findConflicts, visibleFor } from '@/domain/schedule';
-import { type Academy, type MemberId, MEMBERS } from '@/domain/types';
+import { type Academy, memberById, type MemberId, MEMBERS, WEEKDAY_LABELS } from '@/domain/types';
+import { PALETTE } from '@/lib/theme';
 import { useLayout } from '@/lib/useLayout';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection, useNow, useOccurrences } from '@/state/useCollection';
@@ -46,20 +49,52 @@ export default function HomeScreen() {
       ) : (
         occurrences.map((o) => <OccurrenceRow key={o.key} occ={o} conflict={conflicts.has(o.key)} />)
       )}
-      {!readOnly && (
-        <Card.Actions>
-          {!isChild && <Button onPress={() => router.push('/academies')}>학원 관리</Button>}
-          <Button mode="contained-tonal" icon="plus" onPress={() => router.push({ pathname: '/event', params: { date: d } })}>
-            일정 추가
-          </Button>
-        </Card.Actions>
-      )}
+      <Card.Actions>
+        {!isChild && !readOnly && <Button onPress={() => router.push('/academies')}>학원 관리</Button>}
+        <Button onPress={() => router.push('/schedule')}>일정 전체 보기</Button>
+      </Card.Actions>
     </Card>
+  );
+
+  const me = memberById(settings.memberId);
+  const header = (
+    <View style={{ marginBottom: 12 }}>
+      <Text variant="headlineSmall" style={{ fontWeight: '700', color: PALETTE.text }}>
+        {Number(d.slice(5, 7))}월 {Number(d.slice(8))}일 {WEEKDAY_LABELS[now.getDay()]}요일
+      </Text>
+      {me && (
+        <Text variant="bodyMedium" style={{ color: PALETTE.sub }}>
+          {me.name}의 오늘 · {nowLocal(now).slice(11)} 기준
+        </Text>
+      )}
+    </View>
+  );
+  // 빠른 실행: 폰에서도 한 줄에 같은 폭으로
+  const quick = repo && !readOnly && (
+    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+      <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained" icon="calendar-plus" onPress={() => router.push({ pathname: '/event', params: { date: d } })}>
+        일정 추가
+      </Button>
+      {!isChild && (
+        <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained-tonal" icon="message-text-outline" onPress={() => router.push('/input')}>
+          채팅 입력
+        </Button>
+      )}
+      {!isChild && (
+        <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained-tonal" icon="cash-check" onPress={() => router.push('/cost')}>
+          학원비
+        </Button>
+      )}
+    </View>
   );
 
   return (
     <Screen wide>
       <SyncIndicator />
+      {repo && header}
+      {repo && <InboxBanner />}
+      {repo && !needSetup && <DashboardTiles occurrences={occurrences} isChild={isChild} />}
+      {quick}
       <InstallPrompt />
       {!repo ? (
         <Card style={{ marginBottom: 12 }}>
@@ -93,7 +128,7 @@ export default function HomeScreen() {
               <View key="now">
                 {!isChild && <TodoCard />}
                 <Text variant="titleMedium" style={{ marginBottom: 8 }}>
-                  지금 · {nowLocal(now).slice(11)}
+                  {isChild ? '지금' : '아이들 지금'}
                 </Text>
                 {people.map((m) => (
                   <LiveStatusCard key={m.id} member={m} todays={visibleFor(occurrences, m.id)} now={nowLocal(now)} />

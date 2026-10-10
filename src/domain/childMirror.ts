@@ -13,6 +13,8 @@ export interface MirrorSource {
   exceptions: StoredDoc<OccurrenceException>[];
   places: StoredDoc<Place>[];
   holidays: StoredDoc<Holiday>[];
+  /** 알림 설정 — 그 아이 문서만 */
+  reminderPolicies?: StoredDoc[];
 }
 
 export interface MirrorDoc {
@@ -46,6 +48,7 @@ export function childProjection(child: MemberId, src: MirrorSource): MirrorDoc[]
     // 연결 테스트 기록(spikeTest)은 사본에 넣지 않음
     ...pick('places', src.places.filter((p) => !(p as unknown as { spikeTest?: boolean }).spikeTest)),
     ...pick('holidays', holidays.map((h) => ({ ...h, memberIds: [child] }))),
+    ...pick('reminderPolicies', (src.reminderPolicies ?? []).filter((p) => p.id === child)),
   ];
 }
 

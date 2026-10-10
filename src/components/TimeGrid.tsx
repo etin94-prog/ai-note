@@ -69,6 +69,8 @@ export function TimeGrid({
                 return (
                   <Pressable
                     key={o.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${o.title} ${o.start}~${o.end}`}
                     onPress={() => (onSelect ? onSelect(o.key) : router.push({ pathname: '/occurrence', params: { key: o.key } }))}
                     style={[
                       styles.block,
@@ -83,9 +85,14 @@ export function TimeGrid({
                       o.status !== 'normal' && styles.off,
                       o.key === selectedKey && styles.sel,
                     ]}>
-                    <Text numberOfLines={3} style={[styles.blockText, o.status !== 'normal' && styles.strike]}>
+                    <Text numberOfLines={height >= 50 ? 2 : 3} style={[styles.blockText, styles.blockTitle, o.status !== 'normal' && styles.strike]}>
                       {o.title}
                     </Text>
+                    {height >= 50 && n === 1 && (
+                      <Text numberOfLines={1} style={styles.blockTime}>
+                        {o.start}~{o.end}
+                      </Text>
+                    )}
                   </Pressable>
                 );
               });
@@ -98,6 +105,8 @@ export function TimeGrid({
 }
 
 const styles = StyleSheet.create({
+  blockTitle: { fontWeight: '600' },
+  blockTime: { fontSize: 10, opacity: 0.7 },
   headerRow: { flexDirection: 'row', marginBottom: 4 },
   hourCol: { width: 22 },
   hourText: { height: HOUR_H, fontSize: 10, opacity: 0.6, textAlign: 'right', paddingRight: 3 },

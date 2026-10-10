@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { MigratePanel } from '@/components/MigratePanel';
 import { Screen } from '@/components/Screen';
 import { memberById } from '@/domain/types';
 import { type AllData, applyInChunks, type BackupFile, countDocs, loadAll, makeBackup, parseBackup, resetOps, restoreOps } from '@/io/backup';
@@ -143,6 +144,8 @@ export default function AdminScreen() {
             )}
           </Card.Content>
         </Card>
+
+        <MigratePanel />
 
         <Card mode="outlined" style={[styles.card, styles.danger]}>
           <Card.Title title="데이터 초기화" titleStyle={styles.dangerTitle} subtitle="가족 데이터를 모두 지우고 처음부터 시작합니다" subtitleNumberOfLines={2} titleVariant="titleMedium" />

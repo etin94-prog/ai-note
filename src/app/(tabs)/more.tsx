@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
+import { StyleSheet } from 'react-native';
 import { List } from 'react-native-paper';
 
 import { Screen } from '@/components/Screen';
 import { BUILD_VERSION } from '@/lib/config';
+import { PALETTE } from '@/lib/theme';
 import { useRepository } from '@/state/RepositoryContext';
 
 export default function MoreScreen() {
   const { isChild } = useRepository();
   return (
     <Screen>
-      <List.Section>
+      <List.Section style={styles.group}>
         <List.Subheader>관리</List.Subheader>
         <List.Item
           title="학원 · 수강"
@@ -30,17 +32,23 @@ export default function MoreScreen() {
           onPress={() => router.push('/holidays')}
         />
       </List.Section>
-      <List.Section>
+      <List.Section style={styles.group}>
         <List.Subheader>설정</List.Subheader>
         <List.Item
+          title="알림 설정"
+          description={isChild ? '이 기기 알림 켜기·끄기' : '가족별 알림 시점, 학원비 알림, 휴대폰 알림'}
+          left={(p) => <List.Icon {...p} icon="bell-cog-outline" />}
+          onPress={() => router.push('/reminders')}
+        />
+        <List.Item
           title="저장 모드 연결"
-          description="GitHub 저장소 / Firebase / 체험, 이 기기 사용자"
+          description="저장 위치(GitHub·Firebase·체험)와 이 기기 사용자"
           left={(p) => <List.Icon {...p} icon="database-cog-outline" />}
           onPress={() => router.push('/settings/storage')}
         />
       </List.Section>
       {!isChild && (
-        <List.Section>
+        <List.Section style={styles.group}>
           <List.Subheader>데이터</List.Subheader>
           <List.Item
             title="처음 설정"
@@ -63,9 +71,8 @@ export default function MoreScreen() {
         </List.Section>
       )}
       {!isChild && (
-        <List.Section>
+        <List.Section style={styles.group}>
           <List.Subheader>곧 추가</List.Subheader>
-          <List.Item title="알림 설정" left={(p) => <List.Icon {...p} icon="bell-outline" />} />
           <List.Item title="가족 구성원 · 가입 승인" left={(p) => <List.Icon {...p} icon="account-group-outline" />} />
         </List.Section>
       )}
@@ -73,3 +80,8 @@ export default function MoreScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  // 메뉴 묶음을 흰 카드로 (디자인 점검: 회색 바탕에 목록만 있어 구분이 약했음)
+  group: { backgroundColor: PALETTE.card, borderRadius: 16, borderWidth: 1, borderColor: PALETTE.line, marginBottom: 12, overflow: 'hidden' },
+});

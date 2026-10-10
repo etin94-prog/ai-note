@@ -136,7 +136,7 @@ export default function EnrollmentScreen() {
             <View style={styles.row}>
               <TimeField label="시작" value={g.start} onChange={(v) => setGroup(i, { start: v })} />
               <TimeField label="끝" value={g.end} onChange={(v) => setGroup(i, { end: v })} />
-              {groups.length > 1 && <IconButton icon="close" onPress={() => setGroups((x) => x.filter((_, j) => j !== i))} />}
+              {groups.length > 1 && <IconButton icon="close" accessibilityLabel="시간 묶음 빼기" onPress={() => setGroups((x) => x.filter((_, j) => j !== i))} />}
             </View>
           </Card.Content>
         </Card>

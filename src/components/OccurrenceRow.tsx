@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { List, Text } from 'react-native-paper';
 
+import { formatDate } from '@/domain/dates';
 import type { Occurrence } from '@/domain/schedule';
 import { EVENT_KIND_LABELS, exceptionLabel, memberById } from '@/domain/types';
 
@@ -17,12 +18,13 @@ interface Props {
 }
 
 /** 일정 한 줄. 누르면 회차 상세(휴강·결석·준비물·지도). 상태는 색+글자 (X-10) */
-export function OccurrenceRow({ occ, conflict, onSelect, selected }: Props) {
+export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: Props) {
   const off = occ.status !== 'normal';
   const who = occ.targets.map((t) => memberById(t)?.name).join('·');
   const done = occ.checklist.length ? ` · 준비물 ${occ.checked.length}/${occ.checklist.length}` : '';
   return (
     <List.Item
+      accessibilityRole="button"
       onPress={() => (onSelect ? onSelect(occ.key) : router.push({ pathname: '/occurrence', params: { key: occ.key } }))}
       style={[styles.item, selected && styles.selected]}
       title={
@@ -31,7 +33,7 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected }: Props) {
           {occ.subtitle ? <Text style={styles.sub}> {occ.subtitle}</Text> : null}
         </Text>
       }
-      description={`${who} · ${EVENT_KIND_LABELS[occ.kind]}${done}`}
+      description={`${showDate ? `${formatDate(occ.date)} · ` : ''}${who} · ${EVENT_KIND_LABELS[occ.kind]}${done}`}
       left={() => (
         <View style={styles.left}>
           <Text style={[styles.time, off && styles.off]}>{occ.start}</Text>

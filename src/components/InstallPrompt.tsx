@@ -20,6 +20,17 @@ function isIOS(): boolean {
 
 const noSubscribe = () => () => {};
 
+const DISMISS_KEY = 'ai-note.install-dismissed-at';
+const DISMISS_DAYS = 14;
+function dismissedRecently(): boolean {
+  try {
+    const at = Number(globalThis.localStorage?.getItem(DISMISS_KEY) ?? 0);
+    return Date.now() - at < DISMISS_DAYS * 86_400_000;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 홈 화면 설치 안내 (D-10, X-12, Q-14).
  * Android 크롬: [앱 설치] 버튼, iPhone 사파리: 공유 → 홈 화면에 추가 안내. 설치 후에는 숨김.
@@ -30,7 +41,10 @@ export function InstallPrompt() {
   const standalone = useSyncExternalStore(noSubscribe, isStandalone, () => true);
   const ios = useSyncExternalStore(noSubscribe, isIOS, () => false);
   const [appInstalled, setAppInstalled] = useState(false);
-  const installed = standalone || appInstalled;
+  // "나중에" 를 누르면 14일 동안 숨김 (디자인 점검: 홈 맨 위를 계속 차지하던 것)
+  const dismissedAtLoad = useSyncExternalStore(noSubscribe, dismissedRecently, () => true);
+  const [dismissed, setDismissed] = useState(false);
+  const installed = standalone || appInstalled || dismissed || dismissedAtLoad;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -66,21 +80,34 @@ export function InstallPrompt() {
           </Text>
         )}
       </Card.Content>
-      {deferred && (
-        <Card.Actions>
-          <Button
-            mode="contained"
-            icon="download"
-            onPress={async () => {
-              await deferred.prompt();
-              const { outcome } = await deferred.userChoice;
-              if (outcome === 'accepted') setAppInstalled(true);
-              setDeferred(null);
-            }}>
-            앱 설치
-          </Button>
-        </Card.Actions>
-      )}
+      <Card.Actions>
+        <Button
+          onPress={() => {
+            try {
+              globalThis.localStorage?.setItem(DISMISS_KEY, String(Date.now()));
+            } catch {
+              // 저장 못 해도 이번에는 숨김
+            }
+            setDismissed(true);
+          }}>
+          나중에
+        </Button>
+        {deferred && (
+          <>
+            <Button
+              mode="contained"
+              icon="download"
+              onPress={async () => {
+                await deferred.prompt();
+                const { outcome } = await deferred.userChoice;
+                if (outcome === 'accepted') setAppInstalled(true);
+                setDeferred(null);
+              }}>
+              앱 설치
+            </Button>
+          </>
+        )}
+      </Card.Actions>
     </Card>
   );
 }

@@ -194,7 +194,7 @@ export default function StorageSettingsScreen() {
 
       {repo && (
         <Card style={styles.card} mode="outlined">
-          <Card.Title title="기기 간 동기화 확인 (Sprint 0)" titleVariant="titleMedium" />
+          <Card.Title title="기기 간 동기화 확인" titleVariant="titleMedium" />
           <Card.Content>
             <Text variant="bodyMedium">
               한 기기에서 [테스트 기록 쓰기] → 다른 기기에서 목록에 나타나는지 확인합니다. GitHub 모드는 최대 1분 또는 [지금 가져오기].

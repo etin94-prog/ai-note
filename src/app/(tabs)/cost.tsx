@@ -73,11 +73,11 @@ export default function CostScreen() {
   const filters = (
     <View style={wide ? styles.toolbarWide : undefined}>
       <View style={styles.nav}>
-        <IconButton icon="chevron-left" onPress={() => setPeriod(addMonths(period, -1))} />
+        <IconButton icon="chevron-left" accessibilityLabel="이전 달" onPress={() => setPeriod(addMonths(period, -1))} />
         <Button compact onPress={() => setPeriod(today().slice(0, 7))}>
           {period.slice(0, 4)}년 {label}
         </Button>
-        <IconButton icon="chevron-right" onPress={() => setPeriod(addMonths(period, 1))} />
+        <IconButton icon="chevron-right" accessibilityLabel="다음 달" onPress={() => setPeriod(addMonths(period, 1))} />
       </View>
       <MemberFilter value={child} onChange={setChild} members={CHILDREN} />
       <View style={styles.chips}>
@@ -104,6 +104,16 @@ export default function CostScreen() {
           {wide && <Sum label="환불 미수령(전체)" value={summary.refundOpen} color={summary.refundOpen ? '#7C3AED' : undefined} />}
           {wide && <Sum label="이달 실제 지출" value={summary.cashOut} sub={summary.expenses ? `기타 ${won(summary.expenses)} 포함` : undefined} />}
         </View>
+        {summary.billed > 0 && (
+          <View style={styles.progressWrap} accessibilityLabel={`납부 ${Math.round((summary.paid / summary.billed) * 100)}%`}>
+            <View style={styles.track}>
+              <View style={[styles.fillBar, { width: `${Math.min(100, Math.round((summary.paid / summary.billed) * 100))}%` }]} />
+            </View>
+            <Text variant="labelSmall" style={[styles.dim, styles.pct]}>
+              {Math.round((summary.paid / summary.billed) * 100)}% 냄
+            </Text>
+          </View>
+        )}
         {!wide && (
           <View style={styles.sumRow}>
             <Sum label="환불 미수령(전체)" value={summary.refundOpen} color={summary.refundOpen ? '#7C3AED' : undefined} />
@@ -147,8 +157,12 @@ export default function CostScreen() {
   const emptyCard = monthRows.length === 0 && money.loaded && (
     <Card mode="outlined" style={styles.card}>
       <Card.Content>
-        <Text>{label} 청구가 없습니다.</Text>
-        <Text style={styles.dim}>학원·수강 화면에서 월 수강료를 입력하면 매달 청구가 자동으로 만들어집니다. 특강·교재는 [+ 청구 추가]로 넣으세요.</Text>
+        <Text>{label} 청구가 없습니다{child !== 'all' || payer !== 'all' ? ' (지금 고른 조건)' : ''}.</Text>
+        {child === 'all' && payer === 'all' ? (
+          <Text style={styles.dim}>학원·수강 화면에서 월 수강료를 입력하면 매달 청구가 자동으로 만들어집니다. 특강·교재는 [+ 청구 추가]로 넣으세요.</Text>
+        ) : (
+          <Text style={styles.dim}>위의 자녀·담당 선택을 [전체]로 바꾸면 다른 청구도 보입니다.</Text>
+        )}
       </Card.Content>
     </Card>
   );
@@ -159,7 +173,15 @@ export default function CostScreen() {
     if (!rows.length) return null;
     return (
       <Card key={c} mode="outlined" style={styles.card}>
-        <Card.Title title={c === 'common' ? '공통' : memberById(c)?.name} titleVariant="titleSmall" />
+        <View style={styles.childHead}>
+          <View style={[styles.dot, { backgroundColor: c === 'common' ? '#9CA3AF' : (memberById(c)?.color ?? '#9CA3AF') }]} />
+          <Text variant="titleSmall" style={styles.bold}>
+            {c === 'common' ? '공통' : memberById(c)?.name}
+          </Text>
+          <Text variant="labelSmall" style={styles.dim}>
+            {rows.length}건 · {won(rows.reduce((t, r) => t + r.state.due, 0))}
+          </Text>
+        </View>
         {rows.map((r) => (
           <View key={r.id} style={styles.billRow}>
             <List.Item
@@ -250,6 +272,7 @@ export default function CostScreen() {
       open={fabOpen}
       visible
       icon={fabOpen ? 'close' : 'plus'}
+      accessibilityLabel={fabOpen ? '추가 메뉴 닫기' : '추가: 기타 지출 · 청구'}
       style={wide ? styles.fabWide : undefined}
       actions={[
         { icon: 'cart-outline', label: '기타 지출', onPress: () => router.push('/expense') },
@@ -348,6 +371,13 @@ function Sum({ label, value, color, sub }: { label: string; value: number; color
 }
 
 const styles = StyleSheet.create({
+  progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E8ECF2', overflow: 'hidden' },
+  fillBar: { height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
+  pct: { flexShrink: 0 },
+  childHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  bold: { fontWeight: '700' },
   fill: { flex: 1 },
   flex: { flex: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

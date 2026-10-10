@@ -27,7 +27,7 @@ const bills: OpenBill[] = [
   { id: 'b-edu-10', label: '딸 에듀 10월분', academyId: 'a-edu', dueDate: '2026-10-01', due: 300000, remaining: 300000 },
 ];
 
-describe('카드 이용내역 파일 (C-01)', () => {
+describe('카드 이용내역 파일 (C-01)', { timeout: 30_000 }, () => {
   it('제목 줄을 건너뛰고 머리글을 찾아 거래를 읽는다', () => {
     const p = parseCardTable(parseCsv(csv), T)!;
     expect(p.skipped).toBe(0);

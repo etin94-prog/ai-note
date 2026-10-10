@@ -33,8 +33,11 @@ export function planTimeChange(args: {
 
   if (scope === 'this' || !ev.repeatWeekdays?.length) {
     if (!ev.repeatWeekdays?.length && scope !== 'this') {
-      // 1회성 일정은 원본을 바로 수정
-      return [{ type: 'update', col: 'events', id: event.id, patch: { start, end }, expectVersion: event.version }];
+      // 1회성 일정은 원본을 바로 수정 (휴강·준비물 체크 등 예외는 새 시각으로 옮김)
+      return [
+        { type: 'update', col: 'events', id: event.id, patch: { start, end }, expectVersion: event.version },
+        ...moveEventExceptions(event, { ...ev, start, end }, exceptions),
+      ];
     }
     const ex = exceptions.find((e) => e.id === key);
     return ex
@@ -74,4 +77,33 @@ export function planTimeChange(args: {
     { type: 'create', col: 'events', id: newId, data: newEvent as unknown as Record<string, unknown> },
     ...moveExceptions(date, newId, ev.start),
   ];
+}
+
+/**
+ * 일정 원본을 고칠 때(일정 수정 화면) 회차 예외(휴강·결석·준비물 체크·이번만 시간)를 새 회차 키로 옮긴다.
+ * 회차 키 = 원래 시작 시각이라, 시작 시각·날짜가 바뀌면 옮기지 않으면 예외가 사라진다.
+ * 1회성 일정은 날짜도 따라가고, 반복 일정은 날짜는 그대로 시작 시각만 바뀐다.
+ */
+export function moveEventExceptions(event: Doc<ScheduleEvent>, next: ScheduleEvent, exceptions: Doc<OccurrenceException>[]): Op[] {
+  const prev = event.data;
+  const prefix = `event:${event.id}@`;
+  const single = !prev.repeatWeekdays?.length;
+  return exceptions
+    .filter((e) => e.id.startsWith(prefix))
+    .flatMap((e) => {
+      const d = e.id.slice(prefix.length, prefix.length + 10);
+      const newKey = occurrenceKey('event', event.id, single ? next.date : d, next.start);
+      if (newKey === e.id) return [];
+      const { occurrenceKey: _k, start: s, end: en, ...rest } = e.data;
+      // "이번만" 시간이 새 기준 시각과 같아지면 덮어쓰기는 필요 없음
+      const keepTime = s && s !== prev.start && s !== next.start ? { start: s, end: en } : {};
+      // 옮길 자리에 이미 기록이 있으면 합침 (지난 버전에서 남은 기록 등)
+      const there = exceptions.find((x) => x.id === newKey);
+      return [
+        { type: 'delete' as const, col: 'exceptions' as const, id: e.id, expectVersion: e.version },
+        there
+          ? { type: 'update' as const, col: 'exceptions' as const, id: newKey, patch: { ...rest, ...keepTime }, expectVersion: there.version }
+          : { type: 'create' as const, col: 'exceptions' as const, id: newKey, data: { ...rest, ...keepTime, occurrenceKey: newKey } },
+      ];
+    });
 }

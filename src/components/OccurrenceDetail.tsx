@@ -13,7 +13,7 @@ import { type EditScope, planTimeChange } from '@/domain/editScope';
 import type { ExceptionStatus, OccurrenceException, ScheduleEvent } from '@/domain/types';
 import { EVENT_KIND_LABELS, exceptionLabel, isClassKind, memberById } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
-import { useOccurrences } from '@/state/useCollection';
+import { useCollection, useOccurrences } from '@/state/useCollection';
 
 const SCOPES: { value: EditScope; label: string }[] = [
   { value: 'this', label: '이번만' },
@@ -22,12 +22,19 @@ const SCOPES: { value: EditScope; label: string }[] = [
 ];
 
 /** 회차 상세: 휴강·결석·취소(S-04), 시간 변경 범위(S-03), 준비물(S-16), 지도(R-06) */
-export function OccurrenceDetail({ occKey: key, embedded = false, onClose }: { occKey: string; embedded?: boolean; onClose?: () => void }) {
+export function OccurrenceDetail({ occKey: askedKey, embedded = false, onClose }: { occKey: string; embedded?: boolean; onClose?: () => void }) {
   const Wrap = embedded ? EmbeddedWrap : Screen;
-  const date = key.split('@')[1]?.slice(0, 10) ?? '';
+  // 일정 수정으로 날짜·시작 시각이 바뀌어 키가 달라졌으면 같은 일정의 새 회차를 연다
+  const [, askedSource, askedId, askedDate] = /^(event|enrollment):(.+)@(\d{4}-\d{2}-\d{2})T/.exec(askedKey) ?? [];
+  const allEvents = useCollection<ScheduleEvent>('events');
+  const moved = askedSource === 'event' ? allEvents.docs.find((e) => e.id === askedId) : undefined;
+  const date = moved && !moved.repeatWeekdays?.length ? moved.date : (askedDate ?? '');
   const { occurrences, exceptions, events, loaded } = useOccurrences(date, date);
   const { repo, writeContext, readOnly } = useRepository();
-  const occ = occurrences.find((o) => o.key === key);
+  const occ =
+    occurrences.find((o) => o.key === askedKey) ??
+    (askedId ? occurrences.find((o) => o.sourceId === askedId && o.date === date) : undefined);
+  const key = occ?.key ?? askedKey;
   const ex = exceptions.find((e) => e.id === key);
   const source = occ?.source === 'event' ? events.find((e) => e.id === occ.sourceId) : undefined;
   const repeating = occ?.source === 'enrollment' || !!source?.repeatWeekdays?.length;
@@ -189,7 +196,7 @@ export function OccurrenceDetail({ occKey: key, embedded = false, onClose }: { o
                 onPress={() =>
                   router.push({
                     pathname: '/event',
-                    params: { date: occ.date, makeupFor: key, title: `${occ.title} 보강`, targets: occ.targets.join(',') },
+                    params: { date: occ.date, makeupFor: key, title: `${occ.title} 보강`, targets: occ.targets.join(','), start: occ.start, end: occ.end },
                   })
                 }>
                 보강 추가

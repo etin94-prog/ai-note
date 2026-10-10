@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { childProjection, type MirrorSource } from './childMirror';
-import { planTimeChange } from './editScope';
+import { moveEventExceptions, planTimeChange } from './editScope';
 import { expandOccurrences, occurrenceKey } from './schedule';
 import type { ScheduleEvent } from './types';
 
@@ -164,5 +164,50 @@ describe('자녀 사본 (D-14, G-03)', () => {
     const cols = new Set(out.map((d) => d.col));
     for (const c of ['bills', 'payments', 'paymentInfos', 'enrollmentCosts', 'expenses', 'refunds', 'receipts']) expect(cols.has(c as never)).toBe(false);
   });
+
+  it('알림 설정은 그 아이 문서만 (비용 알림·형제·부모 설정 제외)', () => {
+    const withPolicies = {
+      ...src,
+      reminderPolicies: ['son', 'daughter', 'mom', 'cost'].map((id) => ({ ...meta(id), enabled: true, byKind: { default: [30] } })),
+    };
+    expect(childProjection('son', withPolicies).filter((d) => d.col === 'reminderPolicies').map((d) => d.id)).toEqual(['son']);
+  });
 });
 
+
+describe('일정 수정 시 회차 기록 옮기기 (사용자 점검에서 발견)', () => {
+  const doc = (data: ScheduleEvent) => ({ id: 'ev', version: 3, data });
+  const exc = (id: string, data: Record<string, unknown>) => ({ id, version: 1, data: { occurrenceKey: id, ...data } });
+
+  it('1회성 일정의 날짜·시각을 바꾸면 준비물 체크·휴강이 새 회차로', () => {
+    const ev: ScheduleEvent = { kind: 'appointment', title: '치과', targets: ['daughter'], date: '2026-10-12', start: '16:00', end: '17:00', createdBy: 'mom' };
+    const ops = moveEventExceptions(doc(ev), { ...ev, date: '2026-10-13', start: '17:00', end: '18:00' }, [
+      exc('event:ev@2026-10-12T16:00', { checked: ['보험증'] }),
+      exc('event:other@2026-10-12T16:00', { status: 'cancelled' }),
+    ]);
+    expect(ops).toEqual([
+      { type: 'delete', col: 'exceptions', id: 'event:ev@2026-10-12T16:00', expectVersion: 1 },
+      { type: 'create', col: 'exceptions', id: 'event:ev@2026-10-13T17:00', data: { checked: ['보험증'], occurrenceKey: 'event:ev@2026-10-13T17:00' } },
+    ]);
+  });
+
+  it('반복 일정은 날짜는 그대로 시작 시각만, 시각이 같으면 그대로', () => {
+    const ev: ScheduleEvent = { ...school, targets: ['son'] };
+    const list = [exc('event:ev@2026-10-12T08:00', { status: 'absent' })];
+    expect(moveEventExceptions(doc(ev), { ...ev, title: '등교(이름만 바꿈)' }, list)).toEqual([]);
+    const ops = moveEventExceptions(doc(ev), { ...ev, start: '07:50', end: '08:20' }, list);
+    expect(ops[1]).toMatchObject({ id: 'event:ev@2026-10-12T07:50', data: { status: 'absent' } });
+  });
+
+  it('옮길 자리에 기록이 이미 있으면 새로 만들지 않고 합침', () => {
+    const ev: ScheduleEvent = { kind: 'appointment', title: '치과', targets: ['daughter'], date: '2026-10-12', start: '17:00', end: '18:00', createdBy: 'mom' };
+    const ops = moveEventExceptions(doc(ev), { ...ev, start: '16:00', end: '17:00' }, [
+      exc('event:ev@2026-10-12T17:00', { checked: ['보험증'] }),
+      exc('event:ev@2026-10-12T16:00', { checked: [] }),
+    ]);
+    expect(ops.map((o) => [o.type, o.id])).toEqual([
+      ['delete', 'event:ev@2026-10-12T17:00'],
+      ['update', 'event:ev@2026-10-12T16:00'],
+    ]);
+  });
+});

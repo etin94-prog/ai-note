@@ -1,11 +1,12 @@
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, IconButton, List, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Card, List, Switch, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
 
 import { DateField, Label } from '@/components/FormFields';
 import { MemberMultiSelect } from '@/components/MemberChips';
+import { ConfirmButton } from '@/components/ConfirmButton';
 import { Screen } from '@/components/Screen';
 import type { StoredDoc } from '@/data/repository';
 import { formatDate } from '@/domain/dates';
@@ -81,9 +82,11 @@ export default function HolidaysScreen() {
           </Card.Content>
           <Card.Actions>
             {editing !== 'new' && (
-              <IconButton
+              <ConfirmButton
                 icon="delete-outline"
-                onPress={async () => {
+                label="삭제"
+                confirmText="지울까요?"
+                onConfirm={async () => {
                   await repo?.remove('holidays', editing.id, editing.version, writeContext(`방학·휴일 삭제: ${editing.name}`));
                   setEditing(null);
                 }}

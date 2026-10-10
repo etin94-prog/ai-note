@@ -146,6 +146,8 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
 
   const addAdjustment = async () => {
     if (!repo || amount <= 0) return;
+    if (amount > state.due) return setError(`감액은 청구액(${wonFull(state.due)})을 넘을 수 없습니다.`);
+    setError(null);
     const adj: Adjustment = { billId: row.id, amount, reason: text1.trim() || '면제', by: me, at: new Date().toISOString() };
     await repo.create('adjustments', ulid(), R(adj), ctx(`감액·면제 ${won(amount)}`));
     setPanel(null);
@@ -153,6 +155,11 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
 
   const addRefund = async () => {
     if (!repo || amount <= 0) return;
+    // 낸 금액에서 이미 진행 중인(철회 안 한) 환불 요청을 뺀 만큼까지만
+    const open = state.refunds.filter((r) => !r.refund.withdrawn).reduce((s, r) => s + (r.refund.agreed ?? r.refund.requested), 0);
+    const limit = Math.max(0, state.paid - open);
+    if (amount > limit) return setError(`환불 요청은 낸 금액에서 진행 중인 환불을 뺀 ${wonFull(limit)}까지 기록할 수 있습니다.`);
+    setError(null);
     const rf: Refund = { billId: row.id, causeDate: date1, requestedOn: today(), reason, requested: amount, memo: text1.trim() };
     await repo.create('refunds', ulid(), R(rf), ctx(`환불 요청 ${won(amount)}`));
     setPanel(null);
@@ -160,6 +167,9 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
 
   const addReceipt = async (refundId: string) => {
     if (!repo || amount <= 0) return;
+    const balance = state.refunds.find((r) => r.refund.id === refundId)?.state.balance ?? 0;
+    if (amount > balance) return setError(`받은 금액이 남은 환불액(${wonFull(balance)})보다 많습니다.`);
+    setError(null);
     const rc: Receipt = { refundId, billId: row.id, receivedOn: date1, amount, method, by: me, at: new Date().toISOString() };
     await repo.create('receipts', ulid(), R(rc), ctx(`환불 수령 ${won(amount)}`));
     setPanel(null);
@@ -195,7 +205,8 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
           </Text>
           <Text variant="titleMedium" style={styles.line}>
             청구 {wonFull(bill.amount)}
-            {state.adjusted ? ` − 조정 ${won(state.adjusted)}` : ''} · 납부 {won(state.paid)} · 남은 {won(state.remaining)}
+            {state.adjusted ? ` − 조정 ${won(state.adjusted)}` : ''} · 납부 {won(state.paid)}
+            {bill.cancelled ? ' · 취소된 청구 (합계에서 빠짐)' : ` · 남은 ${won(state.remaining)}`}
           </Text>
           {state.overpaid > 0 && <Text style={styles.warn}>과납 {won(state.overpaid)} — 학원에 확인하세요</Text>}
           {bill.needsReview && <Text style={styles.warn}>중도 시작·종료 달입니다. 실제 금액을 확인해 [수정]으로 고쳐 주세요.</Text>}
@@ -271,6 +282,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
           <Card.Content style={styles.gapCol}>
             <MoneyInput label="감액 금액" value={amount} onChange={setAmount} quick={false} />
             <TextInput mode="outlined" dense label="사유 (예: 퇴원 면제, 형제 할인)" value={text1} onChangeText={setText1} />
+            {error && <HelperText type="error">{error}</HelperText>}
             <View style={styles.row}>
               <Button onPress={() => setPanel(null)}>닫기</Button>
               <Button mode="contained" onPress={() => void addAdjustment()}>저장</Button>
@@ -316,6 +328,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
                   <MoneyInput label="받은 금액" value={amount} onChange={setAmount} quick={false} />
                   <DateField label="받은 날" value={date1} onChange={setDate1} />
                   <ChipSelect options={METHODS} value={method} onChange={setMethod} />
+                  {error && <HelperText type="error">{error}</HelperText>}
                   <View style={styles.row}>
                     <Button onPress={() => setPanel(null)}>닫기</Button>
                     <Button mode="contained" onPress={() => void addReceipt(refund.id)}>저장</Button>
@@ -325,6 +338,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
                 <View style={styles.gapCol}>
                   <MoneyInput label="합의한 환불액 (선택)" value={amount} onChange={setAmount} quick={false} />
                   <TextInput mode="outlined" dense label="종결 사유 (예: 학원과 합의)" value={text1} onChangeText={setText1} />
+                  {error && <HelperText type="error">{error}</HelperText>}
                   <View style={styles.row}>
                     <Button onPress={() => setPanel(null)}>닫기</Button>
                     <Button onPress={() => void patchRefund(refund.id, { agreed: amount || null }, '환불 합의액')}>합의액만 저장</Button>
@@ -360,6 +374,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
             <MoneyInput label="요청 금액" value={amount} onChange={setAmount} quick={false} />
             <TextInput mode="outlined" dense label="메모" value={text1} onChangeText={setText1} />
             <HelperText type="info">학원법상 반환사유 발생일부터 5일 이내 반환이 기준입니다(참고). 정확한 금액은 학원과 확인하세요.</HelperText>
+            {error && <HelperText type="error">{error}</HelperText>}
             <View style={styles.row}>
               <Button onPress={() => setPanel(null)}>닫기</Button>
               <Button mode="contained" onPress={() => void addRefund()}>저장</Button>

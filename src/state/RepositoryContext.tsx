@@ -42,9 +42,9 @@ const Ctx = createContext<RepositoryState | null>(null);
 const POLL_MS = 60_000;
 /** 데이터가 바뀐 뒤 자녀 사본을 맞추기까지 대기 (연속 입력을 한 번에) */
 const MIRROR_DEBOUNCE_MS = 5_000;
-const MIRROR_COLLECTIONS: Collection[] = ['academies', 'enrollments', 'events', 'exceptions', 'places', 'holidays'];
+const MIRROR_COLLECTIONS: Collection[] = ['academies', 'enrollments', 'events', 'exceptions', 'places', 'holidays', 'reminderPolicies'];
 
-function buildRepo(s: DeviceSettings): Repository | null {
+export function buildRepo(s: DeviceSettings): Repository | null {
   if (s.mode === 'demo') return new MemoryRepository(undefined, 'ai-note.demo-data.v1');
   if (s.mode === 'github' && s.github.token) {
     return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token));
@@ -114,10 +114,10 @@ export function RepositoryProvider({ children }: PropsWithChildren) {
     mirrorRunning.current = true;
     try {
       // list() 는 전체 데이터를 다 불러온 뒤 돌려준다 → 덜 불러온 상태로 사본을 지우는 일 방지
-      const [academies, enrollments, events, exceptions, places, holidays] = await Promise.all(
+      const [academies, enrollments, events, exceptions, places, holidays, reminderPolicies] = await Promise.all(
         MIRROR_COLLECTIONS.map((c) => repo.list(c)),
       );
-      const src = { academies, enrollments, events, exceptions, places, holidays } as unknown as MirrorSource;
+      const src = { academies, enrollments, events, exceptions, places, holidays, reminderPolicies } as unknown as MirrorSource;
       const results: MirrorResult[] = [];
       for (const [child, repoName] of Object.entries(MIRROR_REPOS) as [MemberId, string][]) {
         try {

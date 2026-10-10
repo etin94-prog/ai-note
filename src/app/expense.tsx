@@ -6,6 +6,7 @@ import { ulid } from 'ulid';
 
 import { ChipSelect, DateField, Label } from '@/components/FormFields';
 import { MoneyInput } from '@/components/MoneyInput';
+import { ConfirmButton } from '@/components/ConfirmButton';
 import { Screen } from '@/components/Screen';
 import { goBack } from '@/lib/nav';
 import type { StoredDoc } from '@/data/repository';
@@ -87,14 +88,14 @@ export default function ExpenseScreen() {
         저장
       </Button>
       {existing && (
-        <Button
-          textColor="#DC2626"
-          onPress={async () => {
+        <ConfirmButton
+          label="삭제"
+          confirmText="이 지출을 지울까요?"
+          onConfirm={async () => {
             await repo?.remove('expenses', existing.id, existing.version, writeContext(`지출 삭제: ${existing.category} ${won(existing.amount)}`));
             goBack('/cost');
-          }}>
-          삭제
-        </Button>
+          }}
+        />
       )}
     </Screen>
   );

@@ -8,6 +8,7 @@ import { PAY_METHOD_LABELS, won } from '@/domain/money';
 import { today } from '@/domain/dates';
 import { PAY_TYPE_LABELS, type PaymentInfo } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
+import { useCollection } from '@/state/useCollection';
 
 import { ChipSelect, DateField } from './FormFields';
 import { MoneyInput } from './MoneyInput';
@@ -37,6 +38,7 @@ export function PaymentDialog({
   onSaved: (paymentId: string, label: string) => void;
 }) {
   const { repo, writeContext, settings } = useRepository();
+  const infos = useCollection<PaymentInfo>('paymentInfos');
   const [opId, setOpId] = useState('');
   const [amount, setAmount] = useState(0);
   const [paidOn, setPaidOn] = useState(today());
@@ -50,10 +52,13 @@ export function PaymentDialog({
     setPrevTarget(target);
     if (target) {
       const last = lastMethod();
+      // 학원 납부 방법이 정해져 있으면 그것을, 링크 결제면 지난번 수단을 기본으로
+      const payType = infos.docs.find((i) => i.id === target.bill.academyId)?.payType;
+      const byType: Partial<Record<string, PayMethod>> = { transfer: 'transfer', app: 'app', visit: 'cash' };
       setOpId(ulid());
       setAmount(target.state.remaining || target.state.due);
       setPaidOn(today());
-      setMethod(last.method);
+      setMethod((payType && byType[payType]) || last.method);
       setCard(last.card);
     }
   }

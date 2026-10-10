@@ -300,13 +300,16 @@ export interface MonthSummary {
 
 export function monthSummary(
   period: string,
-  bills: { bill: Bill; state: BillState }[],
+  bills: { id: string; bill: Bill; state: BillState }[],
   allPayments: Payment[],
   allReceipts: Receipt[],
   expenses: Expense[],
 ): MonthSummary {
   const inMonth = bills.filter((b) => b.bill.period === period && !b.bill.cancelled);
   const inP = (d: string) => d.startsWith(period);
+  // 자녀·담당 필터가 걸려 있으면 실제 지출도 그 청구들의 납부·환불만 (사용자 점검에서 발견)
+  const ids = new Set(bills.map((b) => b.id));
+  const mine = <T extends { billId: string }>(xs: T[]) => xs.filter((x) => ids.has(x.billId));
   const exp = sum(expenses.filter((e) => inP(e.date)));
   return {
     billed: inMonth.reduce((s, b) => s + b.state.due, 0),
@@ -314,7 +317,7 @@ export function monthSummary(
     remaining: inMonth.reduce((s, b) => s + b.state.remaining, 0),
     overdue: inMonth.filter((b) => b.state.overdue).reduce((s, b) => s + b.state.remaining, 0),
     refundOpen: bills.reduce((s, b) => s + b.state.refunds.filter((r) => !r.state.closed).reduce((t, r) => t + Math.max(0, r.state.balance), 0), 0),
-    cashOut: sum(valid(allPayments).filter((p) => inP(p.paidOn))) - sum(valid(allReceipts).filter((r) => inP(r.receivedOn))) + exp,
+    cashOut: sum(valid(mine(allPayments)).filter((p) => inP(p.paidOn))) - sum(valid(mine(allReceipts)).filter((r) => inP(r.receivedOn))) + exp,
     expenses: exp,
   };
 }
