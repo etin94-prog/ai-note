@@ -66,6 +66,7 @@ export default function RootLayout() {
               <Stack.Screen name="reminders" options={{ title: '알림 설정' }} />
             <Stack.Screen name="stats" options={{ title: '통계' }} />
             <Stack.Screen name="trash" options={{ title: '휴지통' }} />
+            <Stack.Screen name="family" options={{ title: '가족 구성원' }} />
             </Stack>
             <SavingBar />
           </RepositoryProvider>

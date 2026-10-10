@@ -2,6 +2,8 @@ import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from '
 import { getAuth } from 'firebase/auth';
 import { type Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
+import { FIREBASE_WEB_CONFIG } from './firebaseConfig';
+
 /**
  * Firebase 웹 설정값 — 공개돼도 되는 값 (보안은 firestore.rules 가 담당).
  * 빌드 시 EXPO_PUBLIC_FIREBASE_* 환경변수로 주입한다. (가이드: docs/guide/Firebase_설정가이드.md 2단계)
@@ -15,7 +17,8 @@ export function firebaseConfigFromEnv(): FirebaseOptions | null {
     messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
   };
-  return cfg.apiKey && cfg.projectId ? cfg : null;
+  // 빌드 환경변수가 있으면 그것을, 없으면 코드에 넣어 둔 값을 쓴다
+  return cfg.apiKey && cfg.projectId ? cfg : FIREBASE_WEB_CONFIG;
 }
 
 let app: FirebaseApp | null = null;

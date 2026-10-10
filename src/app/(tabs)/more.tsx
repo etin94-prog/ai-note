@@ -8,7 +8,7 @@ import { PALETTE } from '@/lib/theme';
 import { useRepository } from '@/state/RepositoryContext';
 
 export default function MoreScreen() {
-  const { isChild } = useRepository();
+  const { isChild, settings } = useRepository();
   return (
     <Screen>
       <List.Section style={styles.group}>
@@ -40,6 +40,14 @@ export default function MoreScreen() {
           left={(p) => <List.Icon {...p} icon="bell-cog-outline" />}
           onPress={() => router.push('/reminders')}
         />
+        {!isChild && settings.mode === 'firebase' && (
+          <List.Item
+            title="가족 구성원"
+            description="가족 코드, 가입 요청 승인, 연결된 계정"
+            left={(p) => <List.Icon {...p} icon="account-group-outline" />}
+            onPress={() => router.push('/family')}
+          />
+        )}
         <List.Item
           title="저장 모드 연결"
           description="저장 위치(GitHub·Firebase·체험)와 이 기기 사용자"
@@ -80,12 +88,6 @@ export default function MoreScreen() {
             left={(p) => <List.Icon {...p} icon="shield-account-outline" />}
             onPress={() => router.push('/admin')}
           />
-        </List.Section>
-      )}
-      {!isChild && (
-        <List.Section style={styles.group}>
-          <List.Subheader>곧 추가</List.Subheader>
-          <List.Item title="가족 구성원 · 가입 승인" left={(p) => <List.Icon {...p} icon="account-group-outline" />} />
         </List.Section>
       )}
       <List.Item title="앱 버전" description={BUILD_VERSION} left={(p) => <List.Icon {...p} icon="information-outline" />} />

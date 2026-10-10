@@ -1,46 +1,79 @@
 rules_version = '2';
 
-// 가족 학원 노트 — Firestore 보안 규칙 (구현계획서 3.3)
-// Sprint 0: 가족 구성원 확인 + 부모 전용 비용 영역 분리까지.
-// Sprint 1~2에서 일정 visibleTo·불변 필드·금전 기록 create-only 규칙과 테스트 14개를 추가한다.
+// 가족 학원 노트 — Firestore 보안 규칙 (구현계획서 3.3, 가이드 7단계)
+//
+// 원칙
+// - 로그인만으로는 아무 가족 데이터도 볼 수 없다. families/{가족코드}/accountLinks/{내 uid} 가 있어야 한다.
+// - accountLinks 는 부모만 만들고 바꾼다 (예외: 가족을 처음 만든 사람의 첫 연결 1건).
+// - 비용 영역(private/finance)은 부모만 읽고 쓴다 (U-05).
+// - 가입 요청은 본인 문서만 만들 수 있고 역할(role)을 스스로 적을 수 없다 (U-02, U-08).
+//
+// 알려진 한계 (R1a): 자녀 계정은 공개 컬렉션(일정·수강 등)을 통째로 읽을 수 있다.
+// 화면에서는 본인 것만 보여 주지만, 형제 일정까지 규칙으로 막으려면 문서별 공개 대상 필드가 필요하다 (후속).
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /families/{fid} {
-      function account() {
-        return get(/databases/$(database)/documents/families/$(fid)/accountLinks/$(request.auth.uid)).data;
+      function signedIn() {
+        return request.auth != null;
+      }
+      function linkDoc() {
+        return /databases/$(database)/documents/families/$(fid)/accountLinks/$(request.auth.uid);
       }
       function isMember() {
-        return request.auth != null
-          && exists(/databases/$(database)/documents/families/$(fid)/accountLinks/$(request.auth.uid));
+        return signedIn() && exists(linkDoc());
       }
       function isParent() {
-        return isMember() && account().role == 'parent';
+        return isMember() && get(linkDoc()).data.role == 'parent';
+      }
+      // 구성원과 역할이 짝이 맞아야 한다: 아빠·엄마 = parent, 아들·딸 = child
+      function validLink(d) {
+        return d.keys().hasOnly(['memberId', 'role', 'email'])
+          && ((d.memberId in ['dad', 'mom'] && d.role == 'parent') || (d.memberId in ['son', 'daughter'] && d.role == 'child'));
       }
 
-      allow read: if isMember();
+      // 가족 문서: 코드를 아는 로그인 사용자가 "있는지"만 확인 가능, 목록 조회 불가
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if false;
 
       // 부모 전용 비용 영역 — 자녀는 읽기·쓰기 모두 불가 (U-05)
       match /private/finance/{col}/{id} {
         allow read, write: if isParent();
       }
 
-      // 가입 요청: 본인 문서만, 역할 필드 금지 (U-02, U-08)
+      // 가입 요청: 본인 문서만, 역할 필드 금지
       match /joinRequests/{uid} {
-        allow create: if request.auth != null && request.auth.uid == uid && !('role' in request.resource.data);
-        allow read, delete: if isParent() || (request.auth != null && request.auth.uid == uid);
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['email', 'memberId', 'requestedAt'])
+          && exists(/databases/$(database)/documents/families/$(fid));
+        allow get, delete: if isParent() || (signedIn() && request.auth.uid == uid);
+        allow list: if isParent();
+        allow update: if false;
       }
 
-      // 계정 연결·구성원: 부모만 생성·변경 (역할 변경 방지, U-03)
+      // 계정 연결: 부모만 생성·변경 (역할 변경 방지, U-03)
       match /accountLinks/{uid} {
-        allow read: if isMember();
-        allow write: if isParent();
+        allow get: if isMember() || (signedIn() && request.auth.uid == uid);
+        allow list: if isParent();
+        // 가족을 만든 사람의 첫 연결: 가족 문서와 같은 묶음으로 쓰므로 getAfter 로 확인
+        allow create: if validLink(request.resource.data) && (
+          isParent()
+          || (signedIn() && request.auth.uid == uid && request.resource.data.role == 'parent'
+              && getAfter(/databases/$(database)/documents/families/$(fid)).data.ownerUid == request.auth.uid)
+        );
+        allow update: if isParent() && validLink(request.resource.data);
+        allow delete: if isParent();
       }
 
-      // 그 외 공개 컬렉션 (Sprint 0 임시: 부모 쓰기, 구성원 읽기)
+      // 그 외 공개 컬렉션: 구성원 읽기, 부모 쓰기. 자녀는 회차 기록(준비물 체크 등)만 쓸 수 있다
       match /{col}/{id} {
-        allow read: if isMember() && col != 'private';
-        allow write: if isParent() && col != 'private' && col != 'accountLinks' && col != 'joinRequests';
+        allow read: if isMember() && !(col in ['private', 'accountLinks', 'joinRequests']);
+        allow write: if !(col in ['private', 'accountLinks', 'joinRequests'])
+          && (isParent() || (isMember() && col == 'exceptions'));
       }
     }
   }

@@ -13,6 +13,7 @@ import { useRepository } from '@/state/RepositoryContext';
 import type { DeviceSettings, StorageMode } from '@/state/settings';
 import { MIRROR_REPOS } from '@/domain/childMirror';
 import { memberById, type MemberId } from '@/domain/types';
+import { FirebaseAccountPanel } from '@/components/FirebaseAccountPanel';
 
 const MEMBERS = [
   { id: 'dad', label: '아빠' },
@@ -173,17 +174,7 @@ export default function StorageSettingsScreen() {
             </View>
           )}
 
-          {draft.mode === 'firebase' && (
-            <View style={styles.gap}>
-              <TextInput
-                mode="outlined"
-                label="가족 ID"
-                value={draft.firebase.familyId}
-                onChangeText={(familyId) => set({ firebase: { familyId } })}
-              />
-              <HelperText type="info">로그인·가족 만들기 화면은 Firebase 설정 후 연결합니다.</HelperText>
-            </View>
-          )}
+          {draft.mode === 'firebase' && <FirebaseAccountPanel />}
         </Card.Content>
         <Card.Actions>
           <Button mode="contained" disabled={!canSave} onPress={save}>

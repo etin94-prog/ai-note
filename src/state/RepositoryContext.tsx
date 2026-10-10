@@ -9,9 +9,24 @@ import { MemoryRepository } from '@/data/memory/MemoryRepository';
 import type { Collection, Repository, WriteContext } from '@/data/repository';
 import { MIRROR_REPOS, type MirrorSource } from '@/domain/childMirror';
 import { memberById, type MemberId } from '@/domain/types';
-import { getFirebase } from '@/lib/firebase';
+import { firebaseConfigFromEnv, getFirebase } from '@/lib/firebase';
+
+import { type AccountLink, watchMyStatus, watchUser } from '@/data/firebase/family';
 
 import { DEFAULT_SETTINGS, type DeviceSettings, loadSettings, saveSettings } from './settings';
+
+/** Firebase 모드 로그인·가족 연결 상태 */
+export interface AccountState {
+  /** 이 빌드에 Firebase 설정값이 들어 있는지 */
+  configured: boolean;
+  /** 로그인 확인이 끝났는지 */
+  ready: boolean;
+  user: { uid: string; email: string | null } | null;
+  /** 가족에 연결됨 (부모가 승인함) */
+  link: AccountLink | null;
+  /** 가입 요청을 보내고 승인 대기 중 */
+  pending: boolean;
+}
 
 export interface MirrorStatus {
   at: string;
@@ -26,6 +41,8 @@ interface RepositoryState {
   isChild: boolean;
   /** 쓰기 불가 (GitHub 모드 자녀 기기 = 읽기 전용 사본, G-04) */
   readOnly: boolean;
+  /** Firebase 모드 계정 상태 (다른 모드에서는 configured 만 의미 있음) */
+  account: AccountState;
   /** 현재 기기 사용자 기준 쓰기 정보 */
   writeContext: (label: string) => WriteContext;
   /** GitHub 모드: 지금 바로 최신 가져오기 */
@@ -69,12 +86,59 @@ export function RepositoryProvider({ children }: PropsWithChildren) {
   // localStorage(외부 저장소)는 hydration 이 끝난 뒤에만 읽을 수 있다
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setSettings(loadSettings()), []);
-  const repo = useMemo(() => buildRepo(settings), [settings]);
+  // ── Firebase 모드: 로그인 + 가족 연결 확인 (연결돼야 데이터 저장소를 연다) ──
+  const fbMode = settings.mode === 'firebase';
+  const [fbUser, setFbUser] = useState<{ uid: string; email: string | null } | null>(null);
+  const [fbReady, setFbReady] = useState(false);
+  const [fbStatus, setFbStatus] = useState<{ link: AccountLink | null; pending: boolean }>({ link: null, pending: false });
+  useEffect(() => {
+    const fb = fbMode ? getFirebase() : null;
+    if (!fb) return;
+    return watchUser(fb.auth, (u) => {
+      setFbUser(u ? { uid: u.uid, email: u.email } : null);
+      setFbReady(true);
+    });
+  }, [fbMode]);
+  const familyId = settings.firebase.familyId;
+  useEffect(() => {
+    const fb = fbMode ? getFirebase() : null;
+    if (!fb || !fbUser || !familyId) return;
+    const off = watchMyStatus(fb.db, familyId, fbUser.uid, (st) => setFbStatus({ link: st.link, pending: st.pending }));
+    return () => {
+      off();
+      setFbStatus({ link: null, pending: false });
+    };
+  }, [fbMode, fbUser, familyId]);
+  const account: AccountState = useMemo(
+    () => ({
+      configured: !!firebaseConfigFromEnv(),
+      ready: fbReady,
+      user: fbMode ? fbUser : null,
+      link: fbMode && fbUser && familyId ? fbStatus.link : null,
+      pending: fbMode && !!fbUser && !!familyId && fbStatus.pending,
+    }),
+    [fbMode, fbReady, fbUser, familyId, fbStatus],
+  );
+  const linked = !!account.link;
+
+  // Firebase 모드는 승인된 계정일 때만 저장소를 연다 (그 전에는 권한이 없어 오류만 난다)
+  const repo = useMemo(() => (settings.mode === 'firebase' && !linked ? null : buildRepo(settings)), [settings, linked]);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [mirror, setMirror] = useState<MirrorStatus | null>(null);
 
-  const isChild = memberById(settings.memberId)?.role === 'child';
+  // Firebase 모드에서 "나는 누구" 는 기기 설정이 아니라 부모가 승인한 계정 연결을 따른다
+  const linkMember = account.link?.memberId;
+  useEffect(() => {
+    if (linkMember && settings.memberId !== linkMember) {
+      const next = { ...settings, memberId: linkMember };
+      saveSettings(next);
+      // 승인된 구성원으로 기기 설정을 맞춤 (외부 상태인 계정 연결과 동기화)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSettings(next);
+    }
+  }, [linkMember, settings]);
+  const isChild = fbMode ? account.link?.role === 'child' : memberById(settings.memberId)?.role === 'child';
   const readOnly = isChild && settings.mode === 'github';
   const isParentGitHub = settings.mode === 'github' && !isChild && repo instanceof GitHubRepository;
 
@@ -160,8 +224,8 @@ export function RepositoryProvider({ children }: PropsWithChildren) {
   }, [isParentGitHub, repo, !!lastSyncAt, syncMirrors]);
 
   const value = useMemo(
-    () => ({ settings, updateSettings, repo, isChild, readOnly, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors }),
-    [settings, updateSettings, repo, isChild, readOnly, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors],
+    () => ({ settings, updateSettings, repo, isChild, readOnly, account, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors }),
+    [settings, updateSettings, repo, isChild, readOnly, account, writeContext, refresh, lastSyncAt, syncError, mirror, syncMirrors],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -59,7 +59,12 @@ export class FirestoreRepository implements Repository {
   }
 
   watch<T>(col: Collection, listener: Listener<StoredDoc<T>[]>): Unsubscribe {
-    return onSnapshot(this.colRef(col), (snap) => listener(snap.docs.map((d) => d.data() as StoredDoc<T>)));
+    return onSnapshot(
+      this.colRef(col),
+      (snap) => listener(snap.docs.map((d) => d.data() as StoredDoc<T>)),
+      // 권한이 없는 컬렉션(자녀 계정의 비용 영역 등)은 빈 목록으로 — 화면이 오류로 멈추지 않게
+      () => listener([]),
+    );
   }
 
   async get<T>(col: Collection, id: string) {
