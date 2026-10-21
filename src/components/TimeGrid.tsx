@@ -10,17 +10,22 @@ import { memberById, WEEKDAY_LABELS } from '@/domain/types';
 const HOUR_H = 44;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
-/** 주간 시간표 격자 (S-V2): 요일 × 시간, 사람별 색 */
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** 주간 시간표 격자 (S-V2): 요일 × 시간, 사람별 색. onEmptyPress 가 있으면 빈 칸(30분 단위)을 눌러 추가 */
 export function TimeGrid({
   days,
   occurrences,
   onSelect,
+  onEmptyPress,
   selectedKey,
   hourHeight = HOUR_H,
 }: {
   days: string[];
   occurrences: Occurrence[];
   onSelect?: (key: string) => void;
+  /** 빈 칸을 누름: 날짜 'YYYY-MM-DD', 시각 'HH:mm' */
+  onEmptyPress?: (date: string, time: string) => void;
   selectedKey?: string;
   hourHeight?: number;
 }) {
@@ -58,6 +63,25 @@ export function TimeGrid({
             {hours.map((h, i) => (
               <View key={h} style={[styles.line, { top: i * hourHeight }]} />
             ))}
+            {onEmptyPress &&
+              hours.flatMap((h, i) =>
+                [0, 30].map((m) => {
+                  const time = `${pad(h)}:${pad(m)}`;
+                  return (
+                    <Pressable
+                      key={time}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${Number(d.slice(5, 7))}월 ${Number(d.slice(8))}일 ${time} 추가`}
+                      onPress={() => onEmptyPress(d, time)}
+                      style={(st) => [
+                        styles.slot,
+                        { top: i * hourHeight + (m ? hourHeight / 2 : 0), height: hourHeight / 2 },
+                        (st as { hovered?: boolean }).hovered && styles.slotHover,
+                      ]}
+                    />
+                  );
+                }),
+              )}
             {(() => {
               const dayOcc = occurrences.filter((o) => o.date === d);
               const lanes = layoutLanes(dayOcc);
@@ -117,6 +141,8 @@ const styles = StyleSheet.create({
   dayBody: { position: 'relative', borderLeftWidth: StyleSheet.hairlineWidth, borderColor: '#D1D5DB' },
   todayBg: { backgroundColor: '#EFF6FF' },
   line: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB' },
+  slot: { position: 'absolute', left: 0, right: 0 },
+  slotHover: { backgroundColor: '#2563EB14' },
   block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 3, paddingHorizontal: 2, overflow: 'hidden' },
   blockText: { fontSize: 10, lineHeight: 12 },
   off: { opacity: 0.45 },

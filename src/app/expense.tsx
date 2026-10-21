@@ -75,7 +75,15 @@ export default function ExpenseScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: existing ? '지출 수정' : '기타 지출' }} />
-      <MoneyInput label="금액" value={amount} onChange={setAmount} autoFocus={!id} />
+      <MoneyInput
+        label="금액"
+        value={amount}
+        onChange={(v) => {
+          setAmount(v);
+          setError(null);
+        }}
+        autoFocus={!id}
+      />
       <Label>분류</Label>
       <ChipSelect options={categories.map((c) => ({ value: c, label: c }))} value={category} onChange={setCategory} />
       <TextInput mode="outlined" dense label="새 분류 (직접 입력)" value={categories.includes(category) ? '' : category} onChangeText={setCategory} />

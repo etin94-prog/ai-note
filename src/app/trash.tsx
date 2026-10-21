@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, List, Text } from 'react-native-paper';
@@ -51,7 +52,7 @@ export default function TrashScreen() {
             key={it.id}
             title={it.label}
             titleNumberOfLines={2}
-            description={`${formatDate(it.deletedAt.slice(0, 10))} ${memberById(it.deletedBy)?.name ?? it.deletedBy} 삭제 · ${Math.max(0, daysLeft(it, now))}일 남음`}
+            description={`${formatDate(dayjs(it.deletedAt).format('YYYY-MM-DD'))} ${memberById(it.deletedBy)?.name ?? it.deletedBy} 삭제 · ${Math.max(0, daysLeft(it, now))}일 남음`}
             right={() => (
               <View style={styles.actions}>
                 <Button

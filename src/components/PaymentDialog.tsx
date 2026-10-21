@@ -63,19 +63,24 @@ export function PaymentDialog({
     }
   }
 
-  // PC 키보드 (X-20): Enter = 확인, Esc = 닫기
+  // PC 키보드 (X-20): Enter = 확인, Esc = 닫기.
+  // 포커스가 남아 있는 [납부 기록] 버튼이 Enter 를 가로채므로 capture 단계에서 먼저 받는다.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onDismiss();
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onDismiss();
+    }
     if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
+      e.stopPropagation();
       void confirm();
     }
   });
   useEffect(() => {
     if (!target || typeof window === 'undefined') return;
     const handler = (e: KeyboardEvent) => onKey(e);
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
   }, [target]);
 
   async function confirm() {

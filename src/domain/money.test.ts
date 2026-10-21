@@ -148,6 +148,15 @@ describe('plannedBills (F-01, A-08, A-13)', () => {
     expect(plannedBills([e], new Map([['e1', post]]), '2026-10', '2026-10')[0].bill.dueDate).toBe('2026-11-05');
     expect(plannedBills([{ ...e, status: 'paused' }], new Map([['e1', costs]]), '2026-10', '2026-10')).toHaveLength(0);
   });
+  it('선불인데 결제일 뒤에 시작한 첫 달은 시작일이 기한 (바로 연체 아님)', () => {
+    const day5 = costs.map((c) => ({ ...c, payDay: 5 }));
+    const late = { ...e, startDate: '2026-10-22' };
+    const out = plannedBills([late], new Map([['e1', day5]]), '2026-10', '2026-11');
+    expect(out.map((o) => o.bill.dueDate)).toEqual(['2026-10-22', '2026-11-05']);
+    // 후불은 다음 달 결제일 그대로
+    const post = day5.map((c) => ({ ...c, timing: 'postpaid' as const }));
+    expect(plannedBills([late], new Map([['e1', post]]), '2026-10', '2026-10')[0].bill.dueDate).toBe('2026-11-05');
+  });
   it('costFor / dueDateOf', () => {
     expect(costFor(costs, '2026-10')?.amount).toBe(450000);
     expect(dueDateOf('2026-02', 31)).toBe('2026-02-28');

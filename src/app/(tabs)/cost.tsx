@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, FAB, IconButton, List, Snackbar, Text } from 'react-native-paper';
 
 import { BillBadge } from '@/components/BillBadge';
 import { BillDetail } from '@/components/BillDetail';
 import { MemberFilter } from '@/components/MemberChips';
 import { goPay, PaymentDialog } from '@/components/PaymentDialog';
-import { Screen, SplitView } from '@/components/Screen';
+import { Screen, SplitView, splitPanelWidth } from '@/components/Screen';
 import { formatDate, today } from '@/domain/dates';
 import { addMonths, monthSummary, todoItems, won } from '@/domain/money';
 import { CHILDREN, memberById, type MemberId, PARENTS } from '@/domain/types';
@@ -24,7 +24,7 @@ const isOpen = (r: BillRow) =>
  */
 export default function CostScreen() {
   const { repo, isChild, writeContext } = useRepository();
-  const { wide } = useLayout();
+  const { wide, width } = useLayout();
   useEnsureBills();
   const money = useMoney();
   const [period, setPeriod] = useState(today().slice(0, 7));
@@ -215,6 +215,9 @@ export default function CostScreen() {
   const billTable = monthRows.length > 0 && (
     <Card mode="outlined" style={styles.card}>
       <Card.Title title={`${label} 청구 ${monthRows.length}건`} titleVariant="titleMedium" />
+      {/* 좁은 PC 폭에서 칸이 글자 단위로 접히지 않게, 모자라면 옆으로 밀어 보기 */}
+      <ScrollView horizontal contentContainerStyle={styles.tableScroll}>
+      <View style={styles.table}>
       <View style={[styles.tr, styles.th]}>
         <Text style={[styles.cName, styles.thText]}>아이</Text>
         <Text style={[styles.cTitle, styles.thText]}>학원·내용</Text>
@@ -251,6 +254,8 @@ export default function CostScreen() {
           </View>
         </Pressable>
       ))}
+      </View>
+      </ScrollView>
     </Card>
   );
 
@@ -276,7 +281,7 @@ export default function CostScreen() {
       visible
       icon={fabOpen ? 'close' : 'plus'}
       accessibilityLabel={fabOpen ? '추가 메뉴 닫기' : '추가: 기타 지출 · 청구'}
-      style={wide ? styles.fabWide : undefined}
+      style={wide ? { paddingRight: splitPanelWidth(width) } : undefined}
       actions={[
         { icon: 'cart-outline', label: '기타 지출', onPress: () => router.push('/expense') },
         { icon: 'receipt-text-plus-outline', label: '청구 추가 (특강·교재)', onPress: () => router.push({ pathname: '/bill', params: { period } }) },
@@ -412,6 +417,8 @@ const styles = StyleSheet.create({
   },
   th: { minHeight: 32, backgroundColor: '#F3F4F6' },
   thText: { fontSize: 12, fontWeight: '700', opacity: 0.7 },
+  tableScroll: { flexGrow: 1 },
+  table: { flex: 1, minWidth: 680 },
   cName: { width: 40 },
   cTitle: { flex: 1, minWidth: 120 },
   cMoney: { width: 64, textAlign: 'right' },
@@ -419,5 +426,4 @@ const styles = StyleSheet.create({
   cStatus: { width: 104 },
   cAct: { width: 136 },
   actInline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
-  fabWide: { paddingRight: 460 },
 });

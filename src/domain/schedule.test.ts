@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDate, mondayOf, normalizeTime } from './dates';
+import { endAfterStart, formatDate, mondayOf, normalizeTime } from './dates';
 import { type ExpandInput, expandOccurrences, findConflicts, liveStatus, occurrenceKey } from './schedule';
 
 // 2026-11-09 = 월요일 (4.2 공통 예시 주간)
@@ -138,6 +138,16 @@ describe('dates', () => {
     expect(normalizeTime('1930')).toBe('19:30');
     expect(normalizeTime('7시30분')).toBe('07:30');
     expect(normalizeTime('25:00')).toBeNull();
+  });
+  it('endAfterStart: 끝이 시작보다 이르면 오후로', () => {
+    expect(endAfterStart('09:00', '19:00')).toBe('21:00');
+    expect(endAfterStart('08:30', '19:00')).toBe('20:30');
+    expect(endAfterStart('20:00', '19:00')).toBe('20:00');
+    expect(endAfterStart('09:00', '08:00')).toBe('09:00');
+    // 오후로 바꿔도 시작보다 이르면 그대로 (잘못 입력 → 저장 때 오류 안내)
+    expect(endAfterStart('06:00', '19:00')).toBe('06:00');
+    expect(endAfterStart('13:00', '15:00')).toBe('13:00');
+    expect(endAfterStart('09:00')).toBe('09:00');
   });
   it('mondayOf / formatDate', () => {
     expect(mondayOf('2026-11-15')).toBe('2026-11-09');

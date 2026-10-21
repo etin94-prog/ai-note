@@ -162,7 +162,7 @@ export default function EventScreen() {
       </View>
       <View style={styles.row}>
         <TimeField label="시작" value={start} onChange={setStart} />
-        <TimeField label="끝" value={end} onChange={setEnd} />
+        <TimeField label="끝" value={end} after={start} onChange={setEnd} />
       </View>
       <View style={styles.switchRow}>
         <Text>매주 반복</Text>

@@ -259,7 +259,7 @@ export default function SetupScreen() {
                 <WeekdayChips value={en.weekdays} onChange={(w) => setEn({ ...en, weekdays: w })} />
                 <View style={styles.row}>
                   <TimeField label="시작" value={en.start} onChange={(v) => setEn({ ...en, start: v })} />
-                  <TimeField label="끝" value={en.end} onChange={(v) => setEn({ ...en, end: v })} />
+                  <TimeField label="끝" value={en.end} after={en.start} onChange={(v) => setEn({ ...en, end: v })} />
                 </View>
                 <TextInput
                   mode="outlined"

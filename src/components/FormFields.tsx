@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Chip, HelperText, Text, TextInput } from 'react-native-paper';
 
-import { isValidDate, normalizeTime } from '@/domain/dates';
+import { endAfterStart, isValidDate, normalizeTime } from '@/domain/dates';
 import { WEEK_ORDER, WEEKDAY_LABELS, type Weekday } from '@/domain/types';
 
-/** 'HH:mm' 시각 입력 — "7시", "1930" 도 받아 정리 (X-03 입력 편의) */
-export function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+/** 'HH:mm' 시각 입력 — "7시", "1930" 도 받아 정리 (X-03 입력 편의). after: 끝 칸이면 시작 시각 (시작보다 이르면 오후로) */
+export function TimeField({ label, value, onChange, after }: { label: string; value: string; onChange: (v: string) => void; after?: string }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
@@ -25,7 +25,8 @@ export function TimeField({ label, value, onChange }: { label: string; value: st
         placeholder="19:00"
         onChangeText={setText}
         onBlur={() => {
-          const t = normalizeTime(text);
+          const n = normalizeTime(text);
+          const t = n && endAfterStart(n, after);
           setError(!t);
           if (t) {
             setText(t);

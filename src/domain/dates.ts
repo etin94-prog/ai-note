@@ -42,6 +42,14 @@ export function normalizeTime(input: string): string | null {
   return null;
 }
 
+/** 끝 시각이 시작보다 이르면 오후로 본다: 시작 19:00, 끝 "9시"(09:00) → 21:00 */
+export function endAfterStart(end: string, start?: string): string {
+  if (!start || end > start) return end;
+  const h = Number(end.slice(0, 2));
+  const pm = `${String(h + 12).padStart(2, '0')}${end.slice(2)}`;
+  return h < 12 && pm > start ? pm : end;
+}
+
 function pad(h: number, min: number) {
   if (h > 23 || min > 59) return null;
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;

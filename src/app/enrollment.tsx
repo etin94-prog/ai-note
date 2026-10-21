@@ -24,7 +24,16 @@ const STATUS = [
 
 /** 수강 등록 (A-02, A-04, A-05): 아이 + 요일·시간(여러 개) → 주간 시간표 자동 생성 (S-02) */
 export default function EnrollmentScreen() {
-  const { id, academyId } = useLocalSearchParams<{ id?: string; academyId: string }>();
+  // 시간표 빈 칸에서 들어오면 요일·시각·자녀·시작일을 미리 채움
+  const { id, academyId, ...pre } = useLocalSearchParams<{
+    id?: string;
+    academyId: string;
+    weekday?: string;
+    start?: string;
+    end?: string;
+    childId?: string;
+    date?: string;
+  }>();
   const { repo, writeContext, isChild } = useRepository();
   const [busy, run] = useBusy();
   const costs = useCollection<EnrollmentCost>('enrollmentCosts');
@@ -37,13 +46,13 @@ export default function EnrollmentScreen() {
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [academy, setAcademy] = useState<StoredDoc<Academy> | null>(null);
   const [existing, setExisting] = useState<StoredDoc<Enrollment> | null>(null);
-  const [childId, setChildId] = useState<MemberId>('son');
+  const [childId, setChildId] = useState<MemberId>(CHILDREN.some((c) => c.id === pre.childId) ? (pre.childId as MemberId) : 'son');
   const [course, setCourse] = useState('');
   // 같은 시간이면 요일을 여러 개 고르고, 요일마다 시간이 다르면 줄을 추가
   const [groups, setGroups] = useState<{ weekdays: Weekday[]; start: string; end: string }[]>([
-    { weekdays: [], start: '18:00', end: '20:00' },
+    { weekdays: pre.weekday ? [Number(pre.weekday) as Weekday] : [], start: pre.start || '18:00', end: pre.end || '20:00' },
   ]);
-  const [startDate, setStartDate] = useState(today());
+  const [startDate, setStartDate] = useState(pre.date || today());
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState<Enrollment['status']>('active');
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +146,7 @@ export default function EnrollmentScreen() {
             <WeekdayChips value={g.weekdays} onChange={(w) => setGroup(i, { weekdays: w })} />
             <View style={styles.row}>
               <TimeField label="시작" value={g.start} onChange={(v) => setGroup(i, { start: v })} />
-              <TimeField label="끝" value={g.end} onChange={(v) => setGroup(i, { end: v })} />
+              <TimeField label="끝" value={g.end} after={g.start} onChange={(v) => setGroup(i, { end: v })} />
               {groups.length > 1 && <IconButton icon="close" accessibilityLabel="시간 묶음 빼기" onPress={() => setGroups((x) => x.filter((_, j) => j !== i))} />}
             </View>
           </Card.Content>

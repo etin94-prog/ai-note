@@ -3,11 +3,12 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, FAB, IconButton, SegmentedButtons, Snackbar, Text } from 'react-native-paper';
 
+import { AddAtTimeDialog } from '@/components/AddAtTimeDialog';
 import { MemberFilter } from '@/components/MemberChips';
 import { MonthCalendar } from '@/components/MonthCalendar';
 import { OccurrenceDetail } from '@/components/OccurrenceDetail';
 import { OccurrenceRow } from '@/components/OccurrenceRow';
-import { Screen, SplitView } from '@/components/Screen';
+import { Screen, SplitView, splitPanelWidth } from '@/components/Screen';
 import { TimeGrid } from '@/components/TimeGrid';
 import { addDays, formatDate, mondayOf, today } from '@/domain/dates';
 import { monthGrid } from '@/domain/insights';
@@ -29,11 +30,13 @@ type View3 = 'day' | 'week' | 'grid' | 'month';
  */
 export default function ScheduleScreen() {
   const { repo, readOnly, isChild, settings } = useRepository();
-  const { wide } = useLayout();
+  const { wide, width } = useLayout();
   const [view, setView] = useState<View3>(wide ? 'grid' : 'day');
   const [day, setDay] = useState(today());
   const [member, setMember] = useState<MemberId | 'all'>('all');
   const [selected, setSelected] = useState<string | null>(null);
+  // 시간표 빈 칸을 눌러 추가 (S-V2)
+  const [addAt, setAddAt] = useState<{ date: string; time: string } | null>(null);
 
   // 폰 → PC 로 넓어지면 시간표로 (X-21)
   const [prevWide, setPrevWide] = useState(wide);
@@ -150,7 +153,15 @@ export default function ScheduleScreen() {
       {view === 'grid' ? (
         <Card mode="outlined" style={styles.card}>
           <Card.Content style={styles.gridPad}>
-            <TimeGrid days={days} occurrences={shown} onSelect={onSelect} selectedKey={selected ?? undefined} hourHeight={wide ? 52 : 44} />
+            <TimeGrid
+              days={days}
+              occurrences={shown}
+              onSelect={onSelect}
+              onEmptyPress={repo && !readOnly ? (date, time) => setAddAt({ date, time }) : undefined}
+              selectedKey={selected ?? undefined}
+              hourHeight={wide ? 52 : 44}
+            />
+            {repo && !readOnly && <Text style={[styles.empty, styles.gridHint]}>빈 칸을 누르면 그 시각에 일정·학원 수업을 추가합니다.</Text>}
           </Card.Content>
         </Card>
       ) : (
@@ -184,7 +195,7 @@ export default function ScheduleScreen() {
     <FAB
       icon="plus"
       label="일정"
-      style={[styles.fab, wide && styles.fabWide]}
+      style={[styles.fab, wide && { right: splitPanelWidth(width) + 16 }]}
       onPress={() => router.push({ pathname: '/event', params: { date: day } })}
     />
   );
@@ -200,19 +211,20 @@ export default function ScheduleScreen() {
             ) : (
               <View>
                 <Text variant="titleSmall" style={styles.panelHead}>
-                  이번 주 남은 일정 {upcoming.length}건
+                  {monday === mondayOf(today()) ? `이번 주 남은 일정 ${upcoming.length}건` : `${formatDate(monday)} 주 일정 ${upcoming.length}건`}
                 </Text>
                 {upcoming.slice(0, 12).map((o) => (
                   <OccurrenceRow key={o.key} occ={o} conflict={conflicts.has(o.key)} onSelect={onSelect} showDate />
                 ))}
                 <Text style={[styles.empty, styles.panelHint]}>
-                  일정을 누르면 여기에서 휴강·결석·시간 변경·준비물을 처리할 수 있습니다.
+                  일정을 누르면 여기에서 휴강·결석·시간 변경·준비물을 처리할 수 있습니다. 시간표 빈 칸을 누르면 그 시각에 새로 추가합니다.
                 </Text>
               </View>
             )
           }
         />
         {fab}
+        <AddAtTimeDialog at={addAt} member={who} allowClass={!isChild} onDismiss={() => setAddAt(null)} />
         <Snackbar visible={!!snack} onDismiss={() => setSnack('')} duration={3000}>
           {snack}
         </Snackbar>
@@ -223,6 +235,7 @@ export default function ScheduleScreen() {
     <View style={styles.fill}>
       <Screen>{body}</Screen>
       {fab}
+      <AddAtTimeDialog at={addAt} member={who} allowClass={!isChild} onDismiss={() => setAddAt(null)} />
       <Snackbar visible={!!snack} onDismiss={() => setSnack('')} duration={3000}>
         {snack}
       </Snackbar>
@@ -243,9 +256,8 @@ const styles = StyleSheet.create({
   todayTitle: { color: '#2563EB', fontWeight: '700' },
   panelHead: { marginBottom: 6, fontWeight: '700' },
   panelHint: { marginTop: 12 },
+  gridHint: { fontSize: 12, marginTop: 6, textAlign: 'center' },
   dayHead: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, fontWeight: '600' },
   empty: { opacity: 0.5 },
   fab: { position: 'absolute', right: 16, bottom: 16 },
-  // PC: 오른쪽 패널(460px) 왼쪽에
-  fabWide: { right: 476 },
 });

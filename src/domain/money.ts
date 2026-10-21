@@ -201,6 +201,9 @@ export function plannedBills(
       if (!cost || cost.cycle !== 'monthly' || cost.amount <= 0) continue;
       const partial = e.startDate > monthStart || (!!e.endDate && e.endDate < monthEnd);
       const duePeriod = cost.timing === 'postpaid' ? addMonths(p, 1) : p;
+      // 선불인데 결제일 뒤에 수강을 시작한 달은 시작일을 기한으로 (등록하자마자 연체로 보이지 않게)
+      const due = dueDateOf(duePeriod, cost.payDay);
+      const dueDate = cost.timing !== 'postpaid' && e.startDate > due ? e.startDate : due;
       out.push({
         id: billKey(e.id, p),
         bill: {
@@ -210,7 +213,7 @@ export function plannedBills(
           enrollmentId: e.id,
           period: p,
           amount: cost.amount,
-          dueDate: dueDateOf(duePeriod, cost.payDay),
+          dueDate,
           payer: e.payer,
           source: 'enrollment',
           ...(partial ? { needsReview: true } : {}),

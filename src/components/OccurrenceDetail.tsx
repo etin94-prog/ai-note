@@ -212,7 +212,7 @@ export function OccurrenceDetail({ occKey: askedKey, embedded = false, onClose }
             <Card.Content>
               <View style={styles.row}>
                 <TimeField label="시작" value={start} onChange={setStart} />
-                <TimeField label="끝" value={end} onChange={setEnd} />
+                <TimeField label="끝" value={end} after={start} onChange={setEnd} />
               </View>
               {occ.source === 'event' && repeating ? (
                 <ChipSelect options={SCOPES} value={scope} onChange={setScope} />

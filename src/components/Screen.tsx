@@ -38,15 +38,19 @@ export function Columns({ children, flex }: { children: ReactNode[]; flex?: numb
  * PC: 왼쪽 본문 + 오른쪽 고정 상세 패널 (X-18, X-19). 폰: 본문만 (패널은 화면 이동으로 대신).
  * 패널과 본문은 각자 스크롤된다.
  */
+/** PC 오른쪽 패널 폭: 큰 화면 460px, 1024px 근처 노트북에서는 줄여 왼쪽 표·시간표 자리를 남김 */
+export const splitPanelWidth = (width: number) => Math.round(Math.min(460, Math.max(340, width * 0.34)));
+
 export function SplitView({ main, panel }: { main: ReactNode; panel: ReactNode | null }) {
-  const { wide } = useLayout();
+  const { wide, width } = useLayout();
   if (!wide) return <>{main}</>;
+  const panelWidth = splitPanelWidth(width);
   return (
     <View style={styles.split}>
       <ScrollView style={styles.splitMain} contentContainerStyle={styles.splitMainContent}>
         {main}
       </ScrollView>
-      <View style={styles.panel}>
+      <View style={[styles.panel, { width: panelWidth }]}>
         <ScrollView contentContainerStyle={styles.panelContent}>{panel}</ScrollView>
       </View>
     </View>
@@ -59,6 +63,6 @@ const styles = StyleSheet.create({
   split: { flex: 1, flexDirection: 'row' },
   splitMain: { flex: 1 },
   splitMainContent: { padding: 16, paddingBottom: 96 },
-  panel: { width: 460, borderLeftWidth: StyleSheet.hairlineWidth, borderColor: '#D1D5DB', backgroundColor: '#FAFAFB' },
+  panel: { borderLeftWidth: StyleSheet.hairlineWidth, borderColor: '#D1D5DB', backgroundColor: '#FAFAFB' },
   panelContent: { padding: 16, paddingBottom: 48 },
 });

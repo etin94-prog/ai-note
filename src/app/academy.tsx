@@ -108,8 +108,10 @@ export default function AcademyScreen() {
     ];
     const r = await repo.applyBatch(ops, writeContext(`학원 ${academy ? '수정' : '추가'}: ${data.name}`));
     if (!r.ok) return setError('다른 기기에서 먼저 수정했습니다. 다시 열어 주세요.');
-    if (!academy) router.replace({ pathname: '/academy', params: { id: academyId } });
-    else goBack('/academies');
+    if (academy) return goBack('/academies');
+    // 버튼 이름대로 바로 수강 등록으로 (뒤로 가면 방금 만든 학원 화면)
+    router.replace({ pathname: '/academy', params: { id: academyId } });
+    router.push({ pathname: '/enrollment', params: { academyId } });
   }
 
   const mine = academy ? enrollments.docs.filter((e) => e.academyId === academy.id) : [];
