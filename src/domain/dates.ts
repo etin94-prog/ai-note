@@ -51,7 +51,8 @@ export function endAfterStart(end: string, start?: string): string {
 }
 
 function pad(h: number, min: number) {
-  if (h > 23 || min > 59) return null;
+  // 24:00 = 자정에 끝남 (끝 시각용)
+  if ((h > 23 && !(h === 24 && min === 0)) || min > 59) return null;
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 

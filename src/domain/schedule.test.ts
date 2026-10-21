@@ -138,6 +138,8 @@ describe('dates', () => {
     expect(normalizeTime('1930')).toBe('19:30');
     expect(normalizeTime('7시30분')).toBe('07:30');
     expect(normalizeTime('25:00')).toBeNull();
+    expect(normalizeTime('24시')).toBe('24:00');
+    expect(normalizeTime('24:30')).toBeNull();
   });
   it('endAfterStart: 끝이 시작보다 이르면 오후로', () => {
     expect(endAfterStart('09:00', '19:00')).toBe('21:00');

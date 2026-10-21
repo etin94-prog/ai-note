@@ -58,7 +58,7 @@ export function parseTime(c: Cell): Parsed<string> {
   if (m[1] === '오후' && h < 12) h += 12;
   if (m[1] === '오전' && h === 12) h = 0;
   const mi = Number(m[3] ?? 0);
-  if (h > 23 || mi > 59) return fail(`시각 '${s}' 인식 불가`);
+  if ((h > 23 && !(h === 24 && mi === 0)) || mi > 59) return fail(`시각 '${s}' 인식 불가`);
   const v = `${pad(h)}:${pad(mi)}`;
   return ok(v, v === s ? undefined : `'${s}' → ${v}`);
 }

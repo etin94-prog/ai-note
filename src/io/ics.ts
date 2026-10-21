@@ -1,3 +1,4 @@
+import { addDays } from '@/domain/dates';
 import type { Occurrence } from '@/domain/schedule';
 import { EVENT_KIND_LABELS, memberById } from '@/domain/types';
 
@@ -7,7 +8,9 @@ import { EVENT_KIND_LABELS, memberById } from '@/domain/types';
  */
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-const dt = (date: string, time: string) => `${date.replace(/-/g, '')}T${time.replace(':', '')}00`;
+// RFC 5545 시각은 00~23시 → 24:00 에 끝나면 다음 날 00:00
+const dt = (date: string, time: string): string =>
+  time === '24:00' ? dt(addDays(date, 1), '00:00') : `${date.replace(/-/g, '')}T${time.replace(':', '')}00`;
 
 /** 75 바이트 줄 접기 (RFC 5545) — 한글이 섞여도 넘지 않게 글자 단위로 */
 export function fold(line: string): string {

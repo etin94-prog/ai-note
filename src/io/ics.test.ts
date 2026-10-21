@@ -33,6 +33,10 @@ describe('.ics 내보내기', () => {
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });
 
+  it('24:00 에 끝나면 다음 날 00:00 으로', () => {
+    const ics = buildIcs([o({ start: '22:00', end: '24:00' })], { calName: '딸 일정', stamp: '20261010T000000Z' });
+    expect(ics).toContain('DTEND;TZID=Asia/Seoul:20261013T000000');
+  });
   it('긴 줄은 75바이트 이하로 접는다', () => {
     const line = `SUMMARY:${'가'.repeat(60)}`;
     for (const part of fold(line).split('\r\n')) expect(new TextEncoder().encode(part).length).toBeLessThanOrEqual(75);

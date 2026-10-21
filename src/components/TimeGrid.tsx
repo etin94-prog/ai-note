@@ -32,7 +32,7 @@ export function TimeGrid({
   const starts = occurrences.map((o) => toMin(o.start));
   const ends = occurrences.map((o) => toMin(o.end));
   const fromH = Math.min(8, ...starts.map((m) => Math.floor(m / 60)));
-  const toH = Math.max(22, ...ends.map((m) => Math.ceil(m / 60)));
+  const toH = Math.max(24, ...ends.map((m) => Math.ceil(m / 60)));
   const hours = Array.from({ length: toH - fromH }, (_, i) => fromH + i);
   const t = today();
 
