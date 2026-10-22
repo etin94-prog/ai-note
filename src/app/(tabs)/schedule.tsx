@@ -159,7 +159,7 @@ export default function ScheduleScreen() {
               onSelect={onSelect}
               onEmptyPress={repo && !readOnly ? (date, time) => setAddAt({ date, time }) : undefined}
               selectedKey={selected ?? undefined}
-              hourHeight={wide ? 52 : 44}
+              hourHeight={wide ? 64 : 52}
             />
             {repo && !readOnly && <Text style={[styles.empty, styles.gridHint]}>빈 칸을 누르면 그 시각에 일정·학원 수업을 추가합니다.</Text>}
           </Card.Content>

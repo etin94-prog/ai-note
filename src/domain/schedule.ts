@@ -132,6 +132,7 @@ export function expandOccurrences(input: ExpandInput): Occurrence[] {
       sourceId: id,
       kind: ev.kind,
       title: ev.title,
+      ...(ev.academy ? { subtitle: ev.academy } : {}),
       targets: ev.targets,
       start: ev.start,
       end: ev.end,

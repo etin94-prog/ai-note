@@ -111,6 +111,8 @@ export interface ScheduleEvent {
   createdBy: MemberId;
   /** 보강이면 원래 휴강 회차 */
   makeupFor?: string;
+  /** 학원 이름 (카톡 공지 등으로 만든 학원 수업) — 시간표·상세에 제목 옆에 표시 */
+  academy?: string;
   /** N-22 이 일정만 다른 알림 시점(분 전). 비어 있으면 각자 설정을 따름 */
   reminders?: number[];
 }

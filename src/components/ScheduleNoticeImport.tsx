@@ -26,6 +26,7 @@ export function ScheduleNoticeImport({ notice, onDone }: { notice: ScheduleNotic
   const [start, setStart] = useState(notice.start);
   const [end, setEnd] = useState(notice.end);
   const [place, setPlace] = useState(notice.place ?? '');
+  const [academy, setAcademy] = useState(notice.academy ?? '');
   const [skip, setSkip] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export function ScheduleNoticeImport({ notice, onDone }: { notice: ScheduleNotic
           start: s.start,
           end: s.end,
           ...(place.trim() ? { place: place.trim() } : {}),
+          ...(academy.trim() ? { academy: academy.trim() } : {}),
           memo: notice.memo,
           scope: 'family',
           createdBy: me,
@@ -68,6 +70,7 @@ export function ScheduleNoticeImport({ notice, onDone }: { notice: ScheduleNotic
       <Card.Title title={`수업 일정 공지 · ${notice.sessions.length}회`} subtitle={notice.academy} titleVariant="titleMedium" />
       <Card.Content style={styles.gap}>
         <TextInput mode="outlined" dense label="제목" value={title} onChangeText={setTitle} />
+        <TextInput mode="outlined" dense label="학원 (시간표에 제목과 함께 표시)" value={academy} onChangeText={setAcademy} />
         <Label>누구</Label>
         <MemberMultiSelect value={targets} onChange={setTargets} />
         <Label>정규 시간 (공지에 따로 적힌 날은 그 시간)</Label>

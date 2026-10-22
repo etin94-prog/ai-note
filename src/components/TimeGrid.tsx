@@ -35,6 +35,8 @@ export function TimeGrid({
   const toH = Math.max(24, ...ends.map((m) => Math.ceil(m / 60)));
   const hours = Array.from({ length: toH - fromH }, (_, i) => fromH + i);
   const t = today();
+  // PC(칸 넓음)는 글자를 더 크게
+  const big = hourHeight >= 56;
 
   return (
     <View>
@@ -109,14 +111,10 @@ export function TimeGrid({
                       o.status !== 'normal' && styles.off,
                       o.key === selectedKey && styles.sel,
                     ]}>
-                    <Text numberOfLines={height >= 50 ? 2 : 3} style={[styles.blockText, styles.blockTitle, o.status !== 'normal' && styles.strike]}>
-                      {o.title}
-                    </Text>
-                    {height >= 50 && n === 1 && (
-                      <Text numberOfLines={1} style={styles.blockTime}>
-                        {o.start}~{o.end}
-                      </Text>
-                    )}
+                    {/* 제목(과목·선생님 또는 학원) → 학원·과정 → 시간. 칸 높이만큼 보이고 넘치면 잘림 */}
+                    <Text style={[styles.blockTitle, big && styles.blockTitleBig, o.status !== 'normal' && styles.strike]}>{o.title}</Text>
+                    {o.subtitle && height >= 40 ? <Text style={[styles.blockSub, big && styles.blockSubBig]}>{o.subtitle}</Text> : null}
+                    {height >= 56 && <Text style={[styles.blockTime, big && styles.blockSubBig]}>{`${o.start}~​${o.end}`}</Text>}
                   </Pressable>
                 );
               });
@@ -129,8 +127,11 @@ export function TimeGrid({
 }
 
 const styles = StyleSheet.create({
-  blockTitle: { fontWeight: '600' },
-  blockTime: { fontSize: 10, opacity: 0.7 },
+  blockTitle: { fontSize: 12, lineHeight: 15, fontWeight: '700' },
+  blockTitleBig: { fontSize: 14, lineHeight: 18 },
+  blockSub: { fontSize: 11, lineHeight: 14, opacity: 0.85 },
+  blockSubBig: { fontSize: 12, lineHeight: 16 },
+  blockTime: { fontSize: 11, lineHeight: 14, opacity: 0.7 },
   headerRow: { flexDirection: 'row', marginBottom: 4 },
   hourCol: { width: 22 },
   hourText: { height: HOUR_H, fontSize: 10, opacity: 0.6, textAlign: 'right', paddingRight: 3 },
@@ -143,8 +144,7 @@ const styles = StyleSheet.create({
   line: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB' },
   slot: { position: 'absolute', left: 0, right: 0 },
   slotHover: { backgroundColor: '#2563EB14' },
-  block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 3, paddingHorizontal: 2, overflow: 'hidden' },
-  blockText: { fontSize: 10, lineHeight: 12 },
+  block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 4, paddingHorizontal: 3, paddingTop: 2, overflow: 'hidden' },
   off: { opacity: 0.45 },
   sel: { borderColor: '#2563EB', borderWidth: 2 },
   strike: { textDecorationLine: 'line-through' },

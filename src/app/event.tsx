@@ -40,6 +40,7 @@ export default function EventScreen() {
   // 휴강 회차에서 [보강 추가]로 들어오면 종류·제목·대상 미리 채움 (S-04)
   const [kind, setKind] = useState<EventKind>(params.makeupFor ? 'makeup' : 'appointment');
   const [title, setTitle] = useState(params.title ?? '');
+  const [academy, setAcademy] = useState('');
   const [targets, setTargets] = useState<MemberId[]>(
     params.targets ? (params.targets.split(',') as MemberId[]) : [],
   );
@@ -65,6 +66,7 @@ export default function EventScreen() {
       setExisting(e);
       setKind(e.kind);
       setTitle(e.title);
+      setAcademy(e.academy ?? '');
       setTargets(e.targets);
       setDate(e.date);
       setStart(e.start);
@@ -92,6 +94,7 @@ export default function EventScreen() {
     const data: ScheduleEvent = {
       kind,
       title: title.trim(),
+      academy: academy.trim(),
       targets,
       date,
       start,
@@ -143,8 +146,11 @@ export default function EventScreen() {
     <Screen>
       <Stack.Screen options={{ title: existing ? '일정 수정' : '일정 추가' }} />
       <Label>종류</Label>
-      <ChipSelect options={KINDS.map((k) => ({ value: k, label: EVENT_KIND_LABELS[k] }))} value={kind} onChange={setKind} />
+      <ChipSelect options={(kind === 'class' ? ['class' as EventKind, ...KINDS] : KINDS).map((k) => ({ value: k, label: EVENT_KIND_LABELS[k] }))} value={kind} onChange={setKind} />
       <TextInput mode="outlined" label="제목 (예: 치과, 스터디, 학원 상담)" value={title} onChangeText={setTitle} />
+      {(kind === 'class' || kind === 'makeup' || !!academy) && (
+        <TextInput mode="outlined" dense label="학원 (선택, 시간표에 제목과 함께 표시)" value={academy} onChangeText={setAcademy} style={styles.academy} />
+      )}
 
       <Label>누구</Label>
       <MemberMultiSelect value={targets} onChange={setTargets} />
@@ -235,6 +241,7 @@ export default function EventScreen() {
 const styles = StyleSheet.create({
   remRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   remHint: { opacity: 0.6 },
+  academy: { marginTop: 8 },
   row: { flexDirection: 'row', gap: 8, marginVertical: 4 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
   gap: { marginBottom: 8 },
