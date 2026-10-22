@@ -190,7 +190,7 @@ export default function CostScreen() {
             <List.Item
               style={styles.item}
               onPress={() => openBill(r.id)}
-              title={`${r.bill.title}  ${won(r.state.due)}`}
+              title={`${r.label}  ${won(r.state.due)}`}
               titleStyle={r.bill.cancelled ? styles.strike : undefined}
               description={`기한 ${formatDate(r.bill.dueDate)} · ${memberById(r.bill.payer)?.name}${r.state.paid ? ` · 납부 ${won(r.state.paid)}` : ''}${r.bill.needsReview ? ' · 금액 확인 필요' : ''}`}
               right={() => <BillBadge status={r.state.status} extra={r.state.status === '미납' ? `D+${overdueDays(r)}` : ''} />}
@@ -232,7 +232,7 @@ export default function CostScreen() {
         <Pressable key={r.id} onPress={() => openBill(r.id)} style={[styles.tr, selected === r.id && styles.sel]}>
           <Text style={styles.cName}>{r.bill.childId === 'common' ? '공통' : memberById(r.bill.childId)?.name}</Text>
           <Text style={[styles.cTitle, r.bill.cancelled && styles.strike]} numberOfLines={1}>
-            {r.bill.title}
+            {r.label}
             {r.bill.needsReview ? ' ⚠' : ''}
           </Text>
           <Text style={styles.cMoney}>{won(r.state.due)}</Text>

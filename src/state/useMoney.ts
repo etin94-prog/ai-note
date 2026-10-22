@@ -6,6 +6,7 @@ import {
   type Adjustment,
   addMonths,
   type Bill,
+  billLabel,
   billState,
   type BillState,
   type EnrollmentCost,
@@ -25,6 +26,8 @@ export interface BillRow {
   id: string;
   doc: StoredDoc<Bill>;
   bill: Bill;
+  /** 화면 표시 이름 "학원명 · 제목" */
+  label: string;
   state: BillState;
   payments: StoredDoc<Payment>[];
   adjustments: StoredDoc<Adjustment>[];
@@ -51,9 +54,10 @@ export function useMoney() {
         const ad = adjustments.docs.filter((a) => a.billId === b.id);
         const rf = refunds.docs.filter((r) => r.billId === b.id);
         const rc = receipts.docs.filter((r) => r.billId === b.id);
-        return { id: b.id, doc: b, bill: b, state: billState(b, ps, ad, rf, rc, t), payments: ps, adjustments: ad, refunds: rf, receipts: rc };
+        const label = billLabel(b.title, academies.docs.find((a) => a.id === b.academyId)?.name);
+        return { id: b.id, doc: b, bill: b, label, state: billState(b, ps, ad, rf, rc, t), payments: ps, adjustments: ad, refunds: rf, receipts: rc };
       }),
-    [bills.docs, payments.docs, adjustments.docs, refunds.docs, receipts.docs, t],
+    [bills.docs, payments.docs, adjustments.docs, refunds.docs, receipts.docs, academies.docs, t],
   );
 
   const loaded = [bills, payments, adjustments, refunds, receipts, expenses].every((c) => c.loaded);

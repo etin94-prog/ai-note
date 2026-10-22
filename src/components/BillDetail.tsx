@@ -86,7 +86,7 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
 
   if (isChild) return <Wrap><Text>부모만 볼 수 있습니다.</Text></Wrap>;
 
-  const ctx = (label: string) => writeContext(row ? `${label}: ${row.bill.title} ${Number(row.bill.period.slice(5))}월분` : label);
+  const ctx = (label: string) => writeContext(row ? `${label}: ${row.label} ${Number(row.bill.period.slice(5))}월분` : label);
 
   // ───── 새 청구 ─────
   if (!params.id) {
@@ -202,12 +202,12 @@ export function BillDetail({ id, period: initialPeriod, embedded = false }: { id
 
   return (
     <Wrap>
-      {!embedded && <Stack.Screen options={{ title: bill.title }} />}
+      {!embedded && <Stack.Screen options={{ title: row.label }} />}
       <Card mode="outlined" style={styles.card}>
         <Card.Content>
           <View style={styles.titleRow}>
             <Text variant="titleLarge" style={[styles.flex, bill.cancelled && styles.strike]}>
-              {bill.title}
+              {row.label}
             </Text>
             <BillBadge status={state.status} />
           </View>

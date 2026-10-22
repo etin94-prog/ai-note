@@ -9,6 +9,7 @@ import {
   monthSummary,
   parseWon,
   type Payment,
+  billLabel,
   plannedBills,
   type Receipt,
   type Refund,
@@ -125,6 +126,15 @@ describe('todoItems (F-32 처리 필요)', () => {
     const t = todoItems(states(), TODAY);
     expect(t.map((x) => `${x.kind}:${x.billId}`)).toEqual(['overdue:engD', 'refund:piano', 'dueSoon:eng']);
     expect(t[1].text).toContain('법정기한 참고일 지남');
+  });
+});
+
+describe('billLabel', () => {
+  it('제목에 학원명이 없으면 앞에 붙이고, 있으면 그대로', () => {
+    expect(billLabel('10월 학원비', '이든수학학원')).toBe('이든수학학원 · 10월 학원비');
+    expect(billLabel('이든수학학원 고1반', '이든수학학원')).toBe('이든수학학원 고1반');
+    expect(billLabel('이든 수학학원 특강', '이든수학학원')).toBe('이든 수학학원 특강');
+    expect(billLabel('교재비')).toBe('교재비');
   });
 });
 

@@ -6,6 +6,7 @@ import { Button, Card, Checkbox, HelperText, Text } from 'react-native-paper';
 import { ulid } from 'ulid';
 
 import { ChipSelect, TimeField } from '@/components/FormFields';
+import { LinkedText } from '@/components/LinkedText';
 import { Screen } from '@/components/Screen';
 import { goBack } from '@/lib/nav';
 import { formatDate } from '@/domain/dates';
@@ -146,6 +147,15 @@ export function OccurrenceDetail({ occKey: askedKey, embedded = false, onClose }
           </Card.Actions>
         ) : null}
       </Card>
+
+      {occ.memo ? (
+        <Card mode="outlined" style={styles.card}>
+          <Card.Title title="공지·메모" titleVariant="titleMedium" />
+          <Card.Content>
+            <LinkedText>{occ.memo}</LinkedText>
+          </Card.Content>
+        </Card>
+      ) : null}
 
       {occ.checklist.length > 0 && (
         <Card mode="outlined" style={styles.card}>

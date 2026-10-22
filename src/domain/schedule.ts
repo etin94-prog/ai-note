@@ -32,6 +32,8 @@ export interface Occurrence {
   /** 원래 시각 (moved 일 때) */
   originalStart?: string;
   place?: string;
+  /** 직접 만든 일정의 메모 (공지 원문 등) */
+  memo?: string;
   checklist: string[];
   checked: string[];
   academyId?: string;
@@ -134,6 +136,7 @@ export function expandOccurrences(input: ExpandInput): Occurrence[] {
       start: ev.start,
       end: ev.end,
       place: ev.place,
+      memo: ev.memo,
       checklist: ev.checklist ?? [],
     };
     if (ev.repeatWeekdays?.length) {

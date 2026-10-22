@@ -6,10 +6,12 @@ import { Button, Card, HelperText, SegmentedButtons, Snackbar, Text, TextInput }
 import { CardImport } from '@/components/CardImport';
 import { GuidedChat } from '@/components/GuidedChat';
 import { ImportPreview } from '@/components/ImportPreview';
+import { ScheduleNoticeImport } from '@/components/ScheduleNoticeImport';
 import { Screen } from '@/components/Screen';
 import { type CardTxn, decodeText, parseCardSms, parseCardTable, parseCsv } from '@/domain/card';
 import { today } from '@/domain/dates';
 import { parseKakaoExport, parseMessage, parsePasted, type ParsedItem } from '@/domain/kakao';
+import { parseScheduleNotice, type ScheduleNotice } from '@/domain/scheduleNotice';
 import { readWorkbook } from '@/io/excel/workbook';
 import { pickFiles, XLSX_MIME } from '@/lib/files';
 import { useRepository } from '@/state/RepositoryContext';
@@ -66,6 +68,8 @@ export default function InputScreen() {
   const [text, setText] = useState(sharedText);
   const [items, setItems] = useState<ParsedItem[] | null>(() => (sharedText ? parsePasted(sharedText, today()) : null));
   const [card, setCard] = useState<CardTxn[] | null>(() => (sharedText ? parseCardSms(sharedText, today()) : null));
+  // 수업 일정 공지 (카톡·문자) → 날짜별 일정
+  const [notice, setNotice] = useState<ScheduleNotice | null>(() => (sharedText ? parseScheduleNotice(sharedText, today()) : null));
   const [files, setFiles] = useState<string[]>([]);
   const [snack, setSnack] = useState<{ text: string; undo?: () => void } | null>(null);
 
@@ -85,6 +89,7 @@ export default function InputScreen() {
   const parsePaste = () => {
     setItems(parsePasted(text, today()));
     setCard(parseCardSms(text, today()));
+    setNotice(parseScheduleNotice(text, today()));
   };
   const loadFiles = async () => {
     const picked = await pickTextFiles();
@@ -107,6 +112,7 @@ export default function InputScreen() {
     if (undo) {
       setItems(null);
       setCard(null);
+      setNotice(null);
     }
   };
 
@@ -117,6 +123,7 @@ export default function InputScreen() {
         setMode(v as Mode);
         setItems(null);
         setCard(null);
+        setNotice(null);
         setFiles([]);
       }}
       buttons={[
@@ -136,7 +143,7 @@ export default function InputScreen() {
       </View>
     );
 
-  const nothing = mode === 'paste' && items?.length === 0 && card?.length === 0;
+  const nothing = mode === 'paste' && items?.length === 0 && card?.length === 0 && !notice;
 
   return (
     <View style={styles.fill}>
@@ -147,7 +154,7 @@ export default function InputScreen() {
           <Card mode="outlined" style={styles.card}>
             <Card.Content style={styles.gap}>
               <Text variant="bodyMedium">
-                학원 카톡·문자 결제 안내나 카드 승인 문자를 길게 눌러 복사한 뒤 붙여넣으세요. 여러 개를 한꺼번에 붙여도 됩니다. 안드로이드는 메시지 [공유] → 학원노트로 보내도 됩니다.
+                학원 카톡·문자 결제 안내, 수업 일정 공지, 카드 승인 문자를 길게 눌러 복사한 뒤 붙여넣으세요. 여러 개를 한꺼번에 붙여도 됩니다. 안드로이드는 메시지 [공유] → 학원노트로 보내도 됩니다.
               </Text>
               <TextInput
                 mode="outlined"
@@ -164,6 +171,7 @@ export default function InputScreen() {
                     setText('');
                     setItems(null);
                     setCard(null);
+                    setNotice(null);
                   }}>
                   지우기
                 </Button>
@@ -171,7 +179,7 @@ export default function InputScreen() {
                   해석하기
                 </Button>
               </View>
-              {nothing && <HelperText type="error">결제 안내나 카드 승인 문자로 보이는 내용을 찾지 못했습니다.</HelperText>}
+              {nothing && <HelperText type="error">결제 안내·수업 일정 공지·카드 승인 문자로 보이는 내용을 찾지 못했습니다.</HelperText>}
             </Card.Content>
           </Card>
         )}
@@ -219,6 +227,7 @@ export default function InputScreen() {
           </Card>
         )}
 
+        {mode === 'paste' && notice && <ScheduleNoticeImport key={`notice-${notice.sessions[0]?.date}-${notice.title}`} notice={notice} onDone={done} />}
         {items && items.length > 0 && <ImportPreview key={`${mode}-${items.length}-${items[0]?.fingerprint}`} items={items} onDone={done} />}
         {card && card.length > 0 && <CardImport key={`card-${card.length}-${card[0]?.fingerprint}`} txns={card} onDone={done} />}
         <View style={{ height: 40 }} />

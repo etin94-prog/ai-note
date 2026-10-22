@@ -33,7 +33,7 @@ export function PaymentDialog({
   onDismiss,
   onSaved,
 }: {
-  target: { id: string; bill: Bill; state: BillState } | null;
+  target: { id: string; bill: Bill; state: BillState; label?: string } | null;
   onDismiss: () => void;
   onSaved: (paymentId: string, label: string) => void;
 }) {
@@ -95,7 +95,7 @@ export function PaymentDialog({
       by: settings.memberId || 'unknown',
       at: new Date().toISOString(),
     };
-    const label = `납부 기록: ${target.bill.title} ${Number(target.bill.period.slice(5))}월분 ${won(amount)}`;
+    const label = `납부 기록: ${target.label ?? target.bill.title} ${Number(target.bill.period.slice(5))}월분 ${won(amount)}`;
     try {
       await repo.create('payments', opId, data as unknown as Record<string, unknown>, writeContext(label));
       globalThis.localStorage?.setItem(LAST_KEY, JSON.stringify({ method, card: data.card }));
@@ -116,7 +116,7 @@ export function PaymentDialog({
         {target && (
           <Dialog.Content style={styles.gap}>
             <Text variant="bodyMedium">
-              {target.bill.title} · {Number(target.bill.period.slice(5))}월분 · 남은 {won(target.state.remaining)}
+              {target.label ?? target.bill.title} · {Number(target.bill.period.slice(5))}월분 · 남은 {won(target.state.remaining)}
             </Text>
             <MoneyInput label="납부 금액" value={amount} onChange={setAmount} quick={false} />
             {over > 0 && target.state.remaining > 0 && <HelperText type="error">청구보다 {won(over)} 많습니다 (과납)</HelperText>}

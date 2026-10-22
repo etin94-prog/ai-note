@@ -337,13 +337,20 @@ export interface TodoItem {
   text: string;
 }
 
+/** 화면 표시 이름: "학원명 · 제목" (제목에 학원명이 이미 있으면 제목만). 카드·직접 입력 청구는 제목이 "10월 학원비" 뿐이라 학원명이 필요 */
+export function billLabel(title: string, academyName?: string): string {
+  if (!academyName) return title;
+  const squash = (s: string) => s.replace(/\s+/g, '');
+  return squash(title).includes(squash(academyName)) ? title : `${academyName} · ${title}`;
+}
+
 /** 처리 필요 — 기간 무관 (F-32): 연체, 3일 이내 기한, 미종결 환불, 확인 필요 청구 */
-export function todoItems(bills: { id: string; bill: Bill; state: BillState }[], today: string): TodoItem[] {
+export function todoItems(bills: { id: string; bill: Bill; state: BillState; label?: string }[], today: string): TodoItem[] {
   const out: TodoItem[] = [];
   const soon = addDays(today, 3);
-  for (const { id, bill, state } of bills) {
+  for (const { id, bill, state, label } of bills) {
     if (bill.cancelled) continue;
-    const base = { billId: id, title: bill.title, payer: bill.payer, childId: bill.childId };
+    const base = { billId: id, title: label ?? bill.title, payer: bill.payer, childId: bill.childId };
     if (state.remaining > 0 && state.status !== '환불진행' && state.status !== '환불완료') {
       if (bill.dueDate < today) {
         const days = dayjs(today).diff(bill.dueDate, 'day');
