@@ -1,17 +1,21 @@
+import { Button } from '@/components/ActionButton';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, FAB, IconButton, List, Snackbar, Text } from 'react-native-paper';
+import { Card, Chip, FAB, IconButton, List, Snackbar, Text } from 'react-native-paper';
 
 import { BillBadge } from '@/components/BillBadge';
 import { BillDetail } from '@/components/BillDetail';
+import { DetailPanel } from '@/components/DetailPanel';
 import { MemberFilter } from '@/components/MemberChips';
 import { goPay, PaymentDialog } from '@/components/PaymentDialog';
-import { Screen, SplitView, splitPanelWidth } from '@/components/Screen';
+import { Screen, SplitView } from '@/components/Screen';
 import { formatDate, today } from '@/domain/dates';
 import { addMonths, monthSummary, todoItems, won } from '@/domain/money';
 import { CHILDREN, memberById, type MemberId, PARENTS } from '@/domain/types';
-import { useLayout } from '@/lib/useLayout';
+import { useLayout, useWorkspaceLayout } from '@/lib/useLayout';
+import { DETAIL_WIDTH, TABLE_MIN } from '@/lib/responsive';
+import { PALETTE } from '@/lib/theme';
 import { useRepository } from '@/state/RepositoryContext';
 import { type BillRow, useEnsureBills, useMoney } from '@/state/useMoney';
 
@@ -24,7 +28,8 @@ const isOpen = (r: BillRow) =>
  */
 export default function CostScreen() {
   const { repo, isChild, writeContext } = useRepository();
-  const { wide, width } = useLayout();
+  const { wide } = useLayout();
+  const { canSplit, canTable, onLayout } = useWorkspaceLayout();
   useEnsureBills();
   const money = useMoney();
   const [period, setPeriod] = useState(today().slice(0, 7));
@@ -34,6 +39,9 @@ export default function CostScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ text: string; undo?: () => void } | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const panelOpen = canSplit && selected !== null;
+  // The table needs its own minimum width even when a detail panel is visible.
+  const showTable = canTable && !panelOpen;
 
   const t = today();
   const filtered = useMemo(
@@ -65,7 +73,7 @@ export default function CostScreen() {
     setSnack({ text: await goPay(info, r.bill) });
   };
   /** PC: 오른쪽 패널, 폰: 상세 화면 */
-  const openBill = (id: string) => (wide ? setSelected(id) : router.push({ pathname: '/bill', params: { id } }));
+  const openBill = (id: string) => (canSplit ? setSelected(id) : router.push({ pathname: '/bill', params: { id } }));
   const overdueDays = (r: BillRow) => Math.max(0, Math.round((Date.parse(t) - Date.parse(r.bill.dueDate)) / 864e5));
   const label = `${Number(period.slice(5))}월분`;
 
@@ -129,7 +137,7 @@ export default function CostScreen() {
 
   const todoCard = todos.length > 0 && (
     <Card mode="outlined" style={[styles.card, styles.todo]}>
-      <Card.Title title={`⚠ 처리 필요 (${todos.length})`} titleVariant="titleMedium" subtitle="지난달 것도 포함" />
+      <Card.Title title={`처리 필요 ${todos.length}건`} titleVariant="titleMedium" subtitle="지난달 것도 포함" />
       {todos.map((td) => {
         const row = money.rows.find((r) => r.id === td.billId)!;
         return (
@@ -144,7 +152,7 @@ export default function CostScreen() {
             {(td.kind === 'overdue' || td.kind === 'dueSoon') && (
               <View style={styles.actions}>
                 <Button compact icon="open-in-new" onPress={() => void pay(row)}>
-                  납부하러 가기
+                  납부 페이지 열기
                 </Button>
                 <Button compact mode="contained-tonal" icon="check" onPress={() => setPaying(row)}>
                   납부 기록
@@ -189,16 +197,19 @@ export default function CostScreen() {
           <View key={r.id} style={styles.billRow}>
             <List.Item
               style={styles.item}
+              accessibilityLabel={`${r.bill.title} 청구 상세 보기`}
+              titleNumberOfLines={0}
+              descriptionNumberOfLines={0}
               onPress={() => openBill(r.id)}
               title={`${r.label}  ${won(r.state.due)}`}
               titleStyle={r.bill.cancelled ? styles.strike : undefined}
               description={`기한 ${formatDate(r.bill.dueDate)} · ${memberById(r.bill.payer)?.name}${r.state.paid ? ` · 납부 ${won(r.state.paid)}` : ''}${r.bill.needsReview ? ' · 금액 확인 필요' : ''}`}
-              right={() => <BillBadge status={r.state.status} extra={r.state.status === '미납' ? `D+${overdueDays(r)}` : ''} />}
             />
+            <View style={{ alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 8 }}><BillBadge status={r.state.status} extra={r.state.status === '미납' ? `D+${overdueDays(r)}` : ''} /></View>
             {isOpen(r) && (
               <View style={styles.actions}>
                 <Button compact icon="open-in-new" onPress={() => void pay(r)}>
-                  납부하러 가기
+                납부 페이지 열기
                 </Button>
                 <Button compact mode="contained-tonal" icon="check" onPress={() => setPaying(r)}>
                   납부 기록
@@ -229,12 +240,14 @@ export default function CostScreen() {
         <View style={styles.cAct} />
       </View>
       {monthRows.map((r) => (
-        <Pressable key={r.id} onPress={() => openBill(r.id)} style={[styles.tr, selected === r.id && styles.sel]}>
+        <View key={r.id} style={[styles.tr, selected === r.id && styles.sel]}>
           <Text style={styles.cName}>{r.bill.childId === 'common' ? '공통' : memberById(r.bill.childId)?.name}</Text>
-          <Text style={[styles.cTitle, r.bill.cancelled && styles.strike]} numberOfLines={1}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${r.bill.title} 청구 상세 보기`} onPress={() => openBill(r.id)} style={({ pressed }) => [styles.cTitle, { minHeight: 48, justifyContent: 'center' }, pressed && styles.sel]}>
+          <Text style={r.bill.cancelled && styles.strike}>
             {r.label}
             {r.bill.needsReview ? ' ⚠' : ''}
           </Text>
+          </Pressable>
           <Text style={styles.cMoney}>{won(r.state.due)}</Text>
           <Text style={styles.cDate}>{formatDate(r.bill.dueDate)}</Text>
           <Text style={styles.cName}>{memberById(r.bill.payer)?.name}</Text>
@@ -252,7 +265,7 @@ export default function CostScreen() {
               </>
             )}
           </View>
-        </Pressable>
+        </View>
       ))}
       </View>
       </ScrollView>
@@ -281,7 +294,7 @@ export default function CostScreen() {
       visible
       icon={fabOpen ? 'close' : 'plus'}
       accessibilityLabel={fabOpen ? '추가 메뉴 닫기' : '추가: 기타 지출 · 청구'}
-      style={wide ? { paddingRight: splitPanelWidth(width) } : undefined}
+      style={panelOpen ? { paddingRight: DETAIL_WIDTH } : undefined}
       actions={[
         { icon: 'cart-outline', label: '기타 지출', onPress: () => router.push('/expense') },
         { icon: 'receipt-text-plus-outline', label: '청구 추가 (특강·교재)', onPress: () => router.push({ pathname: '/bill', params: { period } }) },
@@ -316,25 +329,23 @@ export default function CostScreen() {
 
   if (wide) {
     return (
-      <View style={styles.fill}>
+      <View style={styles.fill} onLayout={onLayout}>
         <SplitView
           main={
             <>
               {filters}
+              {todoCard}
               {summaryCard}
               {/* 오른쪽 패널이 있어 본문이 좁으므로 표는 본문 전체 폭으로 (처리 필요는 위에) */}
-              {todoCard}
               {emptyCard}
-              {billTable}
+              {showTable ? <View style={{ minWidth: TABLE_MIN }}>{billTable}</View> : billCards}
               {expenseCard}
             </>
           }
           panel={
-            selected ? (
-              <BillDetail key={selected} id={selected} embedded />
-            ) : (
-              <Text style={styles.dim}>표나 처리 필요 목록에서 청구를 누르면 여기에서 수정·납부·환불 기록을 할 수 있습니다.</Text>
-            )
+            panelOpen ? <DetailPanel onClose={() => setSelected(null)}>
+              <BillDetail key={selected} id={selected ?? undefined} embedded />
+            </DetailPanel> : null
           }
         />
         {fab}
@@ -344,11 +355,11 @@ export default function CostScreen() {
   }
 
   return (
-    <View style={styles.fill}>
+    <View style={styles.fill} onLayout={onLayout}>
       <Screen>
         {filters}
-        {summaryCard}
         {todoCard}
+        {summaryCard}
         {emptyCard}
         {billCards}
         {expenseCard}
@@ -388,19 +399,19 @@ const styles = StyleSheet.create({
   bold: { fontWeight: '700' },
   fill: { flex: 1 },
   flex: { flex: 1 },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  nav: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
   toolbarWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginBottom: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 6 },
   card: { marginBottom: 10 },
   todo: { borderColor: '#F59E0B' },
-  sumRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  sumRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 16 },
   sumRowWide: { gap: 24 },
-  sum: { flex: 1 },
-  dim: { opacity: 0.65 },
+  sum: { flexGrow: 1, flexBasis: 140, minWidth: 0 },
+  dim: { color: PALETTE.sub },
   billRow: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#E5E7EB' },
   rowInline: { flexDirection: 'column' },
   item: { paddingVertical: 2 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 4, paddingHorizontal: 8, paddingBottom: 6 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, paddingHorizontal: 8, paddingBottom: 12 },
   strike: { textDecorationLine: 'line-through', opacity: 0.5 },
   red: { color: '#DC2626', fontWeight: '700' },
   purple: { color: '#7C3AED', fontWeight: '700' },
@@ -416,14 +427,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   th: { minHeight: 32, backgroundColor: '#F3F4F6' },
-  thText: { fontSize: 12, fontWeight: '700', opacity: 0.7 },
+  thText: { fontSize: 14, fontWeight: '700', color: PALETTE.sub },
   tableScroll: { flexGrow: 1 },
-  table: { flex: 1, minWidth: 680 },
+  table: { flex: 1, minWidth: 940 },
   cName: { width: 40 },
   cTitle: { flex: 1, minWidth: 120 },
-  cMoney: { width: 64, textAlign: 'right' },
-  cDate: { width: 72 },
+  cMoney: { width: 96, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  cDate: { width: 88 },
   cStatus: { width: 104 },
-  cAct: { width: 136 },
+  cAct: { width: 160 },
   actInline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
 });

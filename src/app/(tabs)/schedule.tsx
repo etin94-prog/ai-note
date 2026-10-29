@@ -1,14 +1,16 @@
+import { Button } from '@/components/ActionButton';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, FAB, IconButton, SegmentedButtons, Snackbar, Text } from 'react-native-paper';
+import { Card, FAB, IconButton, SegmentedButtons, Snackbar, Text } from 'react-native-paper';
 
 import { AddAtTimeDialog } from '@/components/AddAtTimeDialog';
 import { MemberFilter } from '@/components/MemberChips';
+import { DetailPanel } from '@/components/DetailPanel';
 import { MonthCalendar } from '@/components/MonthCalendar';
 import { OccurrenceDetail } from '@/components/OccurrenceDetail';
 import { OccurrenceRow } from '@/components/OccurrenceRow';
-import { Screen, SplitView, splitPanelWidth } from '@/components/Screen';
+import { Screen, SplitView } from '@/components/Screen';
 import { TimeGrid } from '@/components/TimeGrid';
 import { addDays, formatDate, mondayOf, today } from '@/domain/dates';
 import { monthGrid } from '@/domain/insights';
@@ -18,7 +20,9 @@ import { memberById, type MemberId, MEMBERS } from '@/domain/types';
 import { buildIcs } from '@/io/ics';
 import { downloadFile } from '@/lib/files';
 import { renderTimetable, shareOrSave } from '@/lib/timetableImage';
-import { useLayout } from '@/lib/useLayout';
+import { useLayout, useWorkspaceLayout } from '@/lib/useLayout';
+import { DETAIL_WIDTH } from '@/lib/responsive';
+import { PALETTE } from '@/lib/theme';
 import { useRepository } from '@/state/RepositoryContext';
 import { useOccurrences } from '@/state/useCollection';
 
@@ -30,19 +34,21 @@ type View3 = 'day' | 'week' | 'grid' | 'month';
  */
 export default function ScheduleScreen() {
   const { repo, readOnly, isChild, settings } = useRepository();
-  const { wide, width } = useLayout();
+  const { wide } = useLayout();
+  const { canSplit, onLayout } = useWorkspaceLayout();
   const [view, setView] = useState<View3>(wide ? 'grid' : 'day');
   const [day, setDay] = useState(today());
   const [member, setMember] = useState<MemberId | 'all'>('all');
   const [selected, setSelected] = useState<string | null>(null);
-  // 시간표 빈 칸을 눌러 추가 (S-V2)
   const [addAt, setAddAt] = useState<{ date: string; time: string } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const panelOpen = canSplit && selected !== null;
 
   // 폰 → PC 로 넓어지면 시간표로 (X-21)
   const [prevWide, setPrevWide] = useState(wide);
   if (wide !== prevWide) {
     setPrevWide(wide);
-    if (wide && view === 'day') setView('grid');
+    if (!wide && view === 'grid') setView('day');
   }
 
   const monday = mondayOf(day);
@@ -63,13 +69,7 @@ export default function ScheduleScreen() {
   // 월간은 한 달씩 넘기고, 달력에서 고른 날 하루치 목록을 아래에 보여 준다
   const move = (dir: 1 | -1) => setDay(view === 'month' ? `${addMonths(period, dir)}-01` : addDays(day, dir * step));
   const days = view === 'day' || view === 'month' ? [day] : Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-  const onSelect = wide ? setSelected : undefined;
-  // PC 오른쪽 패널 기본 내용: 이번 주 지금 이후 일정
-  const nowAt = `${today()}T${new Date().toTimeString().slice(0, 5)}`;
-  const upcoming = useMemo(
-    () => visibleFor(week.occurrences, who).filter((o) => o.status === 'normal' && o.endAt > nowAt).sort((a, b) => (a.startAt < b.startAt ? -1 : 1)),
-    [week.occurrences, who, nowAt],
-  );
+  const onSelect = canSplit ? setSelected : undefined;
 
   /** .ics 스냅샷 — 앞으로 8주, 지금 고른 사람 기준 */
   const saveIcs = () => {
@@ -111,7 +111,7 @@ export default function ScheduleScreen() {
           buttons={[
             { value: 'day', label: '하루' },
             { value: 'week', label: '주간' },
-            { value: 'grid', label: '시간표' },
+            ...(wide ? [{ value: 'grid', label: '시간표' }] : []),
             { value: 'month', label: '월간' },
           ]}
         />
@@ -123,7 +123,8 @@ export default function ScheduleScreen() {
           <IconButton icon="chevron-right" accessibilityLabel="다음" onPress={() => move(1)} />
         </View>
         {!isChild && <MemberFilter value={member} onChange={setMember} members={MEMBERS} />}
-        {repo && (
+        {repo && <Button icon="export-variant" accessibilityState={{ expanded: exportOpen }} onPress={() => setExportOpen(!exportOpen)}>내보내기</Button>}
+        {repo && exportOpen && (
           <View style={styles.exportRow}>
             <Button compact icon="image-outline" loading={imgBusy} disabled={imgBusy} onPress={() => void saveImage()}>
               시간표 이미지
@@ -153,15 +154,10 @@ export default function ScheduleScreen() {
       {view === 'grid' ? (
         <Card mode="outlined" style={styles.card}>
           <Card.Content style={styles.gridPad}>
-            <TimeGrid
-              days={days}
-              occurrences={shown}
-              onSelect={onSelect}
-              onEmptyPress={repo && !readOnly ? (date, time) => setAddAt({ date, time }) : undefined}
-              selectedKey={selected ?? undefined}
-              hourHeight={wide ? 64 : 52}
-            />
-            {repo && !readOnly && <Text style={[styles.empty, styles.gridHint]}>빈 칸을 누르면 그 시각에 일정·학원 수업을 추가합니다.</Text>}
+            <Text style={styles.empty}>빈 칸을 누르면 새 일정을 추가합니다. 짧거나 겹친 일정은 아래 목록에서 확인하세요.</Text>
+            <TimeGrid onEmptyPress={repo && !readOnly ? (date, time) => setAddAt({ date, time }) : undefined} days={days} occurrences={shown} onSelect={onSelect} selectedKey={selected ?? undefined} hourHeight={72} />
+            <Text variant="titleMedium" style={styles.dayHead}>주간 일정 목록</Text>
+            {shown.map((o) => <OccurrenceRow key={o.key} occ={o} onSelect={onSelect} showDate conflict={conflicts.has(o.key)} />)}
           </Card.Content>
         </Card>
       ) : (
@@ -195,32 +191,22 @@ export default function ScheduleScreen() {
     <FAB
       icon="plus"
       label="일정"
-      style={[styles.fab, wide && { right: splitPanelWidth(width) + 16 }]}
+      style={[styles.fab, panelOpen && { right: DETAIL_WIDTH + 16 }]}
       onPress={() => router.push({ pathname: '/event', params: { date: day } })}
     />
   );
 
   if (wide) {
     return (
-      <View style={styles.fill}>
+      <View style={styles.fill} onLayout={onLayout}>
         <SplitView
           main={body}
           panel={
-            selected ? (
-              <OccurrenceDetail key={selected} occKey={selected} embedded onClose={() => setSelected(null)} />
-            ) : (
-              <View>
-                <Text variant="titleSmall" style={styles.panelHead}>
-                  {monday === mondayOf(today()) ? `이번 주 남은 일정 ${upcoming.length}건` : `${formatDate(monday)} 주 일정 ${upcoming.length}건`}
-                </Text>
-                {upcoming.slice(0, 12).map((o) => (
-                  <OccurrenceRow key={o.key} occ={o} conflict={conflicts.has(o.key)} onSelect={onSelect} showDate />
-                ))}
-                <Text style={[styles.empty, styles.panelHint]}>
-                  일정을 누르면 여기에서 휴강·결석·시간 변경·준비물을 처리할 수 있습니다. 시간표 빈 칸을 누르면 그 시각에 새로 추가합니다.
-                </Text>
-              </View>
-            )
+            panelOpen && selected ? (
+              <DetailPanel onClose={() => setSelected(null)}>
+                <OccurrenceDetail key={selected} occKey={selected} embedded onClose={() => setSelected(null)} />
+              </DetailPanel>
+            ) : null
           }
         />
         {fab}
@@ -232,7 +218,7 @@ export default function ScheduleScreen() {
     );
   }
   return (
-    <View style={styles.fill}>
+    <View style={styles.fill} onLayout={onLayout}>
       <Screen>{body}</Screen>
       {fab}
       <AddAtTimeDialog at={addAt} member={who} allowClass={!isChild} onDismiss={() => setAddAt(null)} />
@@ -248,16 +234,16 @@ const styles = StyleSheet.create({
   toolbarWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 8 },
   segWide: { width: 360 },
   exportRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  nav: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
   card: { marginBottom: 10 },
   weekWide: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  weekCard: { width: '32%', minWidth: 260 },
+  weekCard: { flexGrow: 1, flexBasis: 320, minWidth: 0 },
   gridPad: { paddingHorizontal: 4 },
   todayTitle: { color: '#2563EB', fontWeight: '700' },
   panelHead: { marginBottom: 6, fontWeight: '700' },
   panelHint: { marginTop: 12 },
   gridHint: { fontSize: 12, marginTop: 6, textAlign: 'center' },
   dayHead: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, fontWeight: '600' },
-  empty: { opacity: 0.5 },
+  empty: { color: PALETTE.sub, fontSize: 14, lineHeight: 21 },
   fab: { position: 'absolute', right: 16, bottom: 16 },
 });

@@ -5,6 +5,7 @@ import { List, Text } from 'react-native-paper';
 import { formatDate } from '@/domain/dates';
 import type { Occurrence } from '@/domain/schedule';
 import { EVENT_KIND_LABELS, exceptionLabel, memberById } from '@/domain/types';
+import { PALETTE } from '@/lib/theme';
 
 import { MemberDots } from './MemberChips';
 
@@ -25,6 +26,9 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: P
   return (
     <List.Item
       accessibilityRole="button"
+      accessibilityState={{ selected: !!selected }}
+      titleNumberOfLines={0}
+      descriptionNumberOfLines={0}
       onPress={() => (onSelect ? onSelect(occ.key) : router.push({ pathname: '/occurrence', params: { key: occ.key } }))}
       style={[styles.item, selected && styles.selected]}
       title={
@@ -52,13 +56,13 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: P
 }
 
 const styles = StyleSheet.create({
-  item: { paddingVertical: 2 },
+  item: { paddingVertical: 8, minHeight: 72 },
   selected: { backgroundColor: '#EFF6FF' },
   left: { width: 48, alignItems: 'center', justifyContent: 'center' },
   time: { fontWeight: '700', fontSize: 15, fontVariant: ['tabular-nums'] },
-  end: { fontSize: 12, opacity: 0.6, fontVariant: ['tabular-nums'] },
+  end: { fontSize: 14, color: PALETTE.sub, fontVariant: ['tabular-nums'] },
   title: { fontSize: 16, fontWeight: '600' },
-  sub: { fontSize: 13, fontWeight: '400', opacity: 0.7 },
+  sub: { fontSize: 14, fontWeight: '400', color: PALETTE.sub },
   off: { textDecorationLine: 'line-through', opacity: 0.5 },
   right: { alignItems: 'flex-end', justifyContent: 'center', gap: 4 },
   badgeOff: { fontSize: 12, color: '#6B7280', fontWeight: '700' },

@@ -1,11 +1,13 @@
+import { Button } from '@/components/ActionButton';
 import { useEffect, useEffectEvent, useState } from 'react';
-import { Linking, StyleSheet } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { ulid } from 'ulid';
 
 import type { Bill, BillState, Payment, PayMethod } from '@/domain/money';
 import { PAY_METHOD_LABELS, won } from '@/domain/money';
-import { today } from '@/domain/dates';
+import { isValidDate, today } from '@/domain/dates';
+import { useDialogFocus } from '@/lib/useDialogFocus';
 import { PAY_TYPE_LABELS, type PaymentInfo } from '@/domain/types';
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
@@ -45,6 +47,10 @@ export function PaymentDialog({
   const [method, setMethod] = useState<PayMethod>('card');
   const [card, setCard] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dateValid, setDateValid] = useState(true);
+  const [error, setError] = useState('');
+  const dialogRef = useDialogFocus(!!target);
+  const { height } = useWindowDimensions();
 
   // 대화상자를 열 때마다 기본값으로 채우고 새 기록 ID 를 만든다
   const [prevTarget, setPrevTarget] = useState(target);
@@ -58,6 +64,8 @@ export function PaymentDialog({
       setOpId(ulid());
       setAmount(target.state.remaining || target.state.due);
       setPaidOn(today());
+      setDateValid(true);
+      setError('');
       setMethod((payType && byType[payType]) || last.method);
       setCard(last.card);
     }
@@ -66,11 +74,13 @@ export function PaymentDialog({
   // PC 키보드 (X-20): Enter = 확인, Esc = 닫기.
   // 포커스가 남아 있는 [납부 기록] 버튼이 Enter 를 가로채므로 capture 단계에서 먼저 받는다.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !saving) {
+      e.preventDefault();
       e.stopPropagation();
       onDismiss();
     }
-    if (e.key === 'Enter' && !e.isComposing) {
+    const element = e.target as HTMLElement;
+    if (e.key === 'Enter' && !e.isComposing && element.tagName === 'INPUT') {
       e.preventDefault();
       e.stopPropagation();
       void confirm();
@@ -84,8 +94,9 @@ export function PaymentDialog({
   }, [target]);
 
   async function confirm() {
-    if (!repo || !target || amount <= 0 || saving) return;
+    if (!repo || !target || amount <= 0 || saving || !dateValid || !isValidDate(paidOn)) return;
     setSaving(true);
+    setError('');
     const data: Payment = {
       billId: target.id,
       paidOn,
@@ -100,6 +111,8 @@ export function PaymentDialog({
       await repo.create('payments', opId, data as unknown as Record<string, unknown>, writeContext(label));
       globalThis.localStorage?.setItem(LAST_KEY, JSON.stringify({ method, card: data.card }));
       onSaved(opId, label);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '저장하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.');
     } finally {
       setSaving(false);
     }
@@ -111,8 +124,11 @@ export function PaymentDialog({
 
   return (
     <Portal>
-      <Dialog visible onDismiss={onDismiss}>
+      <View ref={dialogRef} role="dialog" aria-modal={true} accessibilityViewIsModal accessibilityLabel="납부 기록" pointerEvents="box-none" style={{ flex: 1 }}>
+      <KeyboardAvoidingView pointerEvents="box-none" style={{ flex: 1 }} enabled={Platform.OS !== 'web'} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <Dialog visible dismissable={!saving} onDismiss={() => { if (!saving) onDismiss(); }} style={{ maxHeight: height - 48, maxWidth: 560, width: '90%', alignSelf: 'center' }}>
         <Dialog.Title>납부 기록</Dialog.Title>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
         {target && (
           <Dialog.Content style={styles.gap}>
             <Text variant="bodyMedium">
@@ -121,18 +137,23 @@ export function PaymentDialog({
             <MoneyInput label="납부 금액" value={amount} onChange={setAmount} quick={false} />
             {over > 0 && target.state.remaining > 0 && <HelperText type="error">청구보다 {won(over)} 많습니다 (과납)</HelperText>}
             {amount > 0 && amount < target.state.remaining && <HelperText type="info">부분 납부로 기록됩니다</HelperText>}
-            <DateField label="납부일" value={paidOn} onChange={setPaidOn} />
+            <DateField label="납부일" value={paidOn} onChange={setPaidOn} onValidityChange={setDateValid} />
+            {!dateValid && <HelperText type="error">납부일을 YYYY-MM-DD 형식으로 확인해 주세요.</HelperText>}
             <ChipSelect options={METHODS} value={method} onChange={setMethod} />
-            {method === 'card' && <TextInput mode="outlined" dense label="카드 (선택, 예: 삼성카드)" value={card} onChangeText={setCard} />}
+            {method === 'card' && <TextInput mode="outlined" label="카드 (선택, 예: 삼성카드)" accessibilityLabel="카드 이름 (선택)" value={card} onChangeText={setCard} />}
           </Dialog.Content>
         )}
+        {error ? <View accessibilityLiveRegion="polite"><HelperText type="error">{error}</HelperText></View> : null}
+        </ScrollView>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>취소</Button>
-          <Button mode="contained" onPress={() => void confirm()} loading={saving} disabled={saving || amount <= 0}>
-            확인
+          <Button disabled={saving} onPress={onDismiss}>취소</Button>
+          <Button contentStyle={{ minHeight: 48 }} mode="contained" onPress={() => void confirm()} loading={saving} disabled={saving || amount <= 0 || !dateValid}>
+            납부 기록 저장
           </Button>
         </Dialog.Actions>
       </Dialog>
+      </KeyboardAvoidingView>
+      </View>
     </Portal>
   );
 }

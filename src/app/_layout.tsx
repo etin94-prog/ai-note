@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ReminderPump } from '@/components/ReminderPump';
 import { SavingBar } from '@/components/SavingBar';
 import { FONT_FAMILY, PALETTE, theme } from '@/lib/theme';
+import { useKeyboardViewport } from '@/lib/useKeyboardViewport';
 import { RepositoryProvider } from '@/state/RepositoryContext';
 
 /** 내비게이션(머리말·화면 바탕) 색을 앱 테마와 맞춤 */
@@ -36,6 +37,7 @@ function HomeButton() {
 }
 
 export default function RootLayout() {
+  useKeyboardViewport();
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
