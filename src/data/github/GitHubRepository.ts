@@ -36,6 +36,40 @@ export interface GitHubRepositoryOptions {
   optimistic?: boolean;
   /** 통신 오류 때 다시 시도하기 전 기다리는 시간(ms). 테스트에서 0 */
   retryDelayMs?: number;
+  /** 받은 파일을 기기에 보관 → 앱을 다시 열 때 바뀐 파일만 받는다 (GitHub 요청 한도 절약) */
+  store?: CacheStore;
+}
+
+/** 기기 보관용 캐시 사본 */
+export interface CacheSnapshot {
+  head: string | null;
+  entries: [path: string, sha: string, col: Collection, doc: StoredDoc][];
+}
+
+export interface CacheStore {
+  load(): CacheSnapshot | null;
+  save(snap: CacheSnapshot): void;
+}
+
+/** localStorage 보관 (저장소마다 키 따로). 용량 부족·사생활 모드면 조용히 건너뛴다. */
+export function localCacheStore(key: string): CacheStore {
+  return {
+    load() {
+      try {
+        const raw = globalThis.localStorage?.getItem(key);
+        return raw ? (JSON.parse(raw) as CacheSnapshot) : null;
+      } catch {
+        return null;
+      }
+    },
+    save(snap) {
+      try {
+        globalThis.localStorage?.setItem(key, JSON.stringify(snap));
+      } catch {
+        // 보관 못 해도 다음에 다시 받으면 됨
+      }
+    },
+  };
 }
 
 class ConflictError extends Error {}
@@ -66,6 +100,8 @@ export class GitHubRepository implements Repository {
   private retryDelayMs: number;
   private failed = 0;
   private lastError: string | undefined;
+  private store: CacheStore | undefined;
+  private syncing: Promise<void> | null = null;
 
   constructor(
     private readonly api: GitHubApi,
@@ -75,23 +111,40 @@ export class GitHubRepository implements Repository {
     this.maxRetries = opts.maxRetries ?? 3;
     this.optimistic = opts.optimistic ?? false;
     this.retryDelayMs = opts.retryDelayMs ?? 1500;
+    this.store = opts.store;
+    // 지난번에 받아 둔 내용으로 바로 화면을 채우고, sync 는 바뀐 파일만 받는다 (head 는 sync 가 새로 정함)
+    for (const [path, sha, col, doc] of this.store?.load()?.entries ?? []) this.cache.set(path, { sha, col, doc });
   }
 
-  /** 최신 상태 가져오기. 바뀐 파일만 다시 받는다. 화면 복귀·주기 확인에서 호출. */
-  async sync(): Promise<void> {
+  private persist() {
+    this.store?.save({ head: this.head, entries: [...this.cache].map(([path, e]) => [path, e.sha, e.col, e.doc]) });
+  }
+
+  /** 최신 상태 가져오기. 바뀐 파일만 다시 받는다. 화면 복귀·주기 확인에서 호출. 동시에 불리면 한 번만 받는다. */
+  sync(): Promise<void> {
+    if (!this.syncing) this.syncing = this.syncNow().finally(() => (this.syncing = null));
+    return this.syncing;
+  }
+
+  private async syncNow(): Promise<void> {
     const tree = await this.api.readTree(this.etag);
     if (tree.notModified) return;
     const touched = new Set<Collection>();
     const seen = new Set<string>();
-    for (const e of tree.entries) {
-      const parsed = parseDocPath(e.path);
-      if (!parsed) continue;
-      seen.add(e.path);
-      const cur = this.cache.get(e.path);
-      if (cur?.sha === e.sha) continue;
-      const doc = JSON.parse(await this.api.readBlob(e.sha)) as StoredDoc;
-      this.cache.set(e.path, { sha: e.sha, col: parsed.col, doc });
-      touched.add(parsed.col);
+    try {
+      for (const e of tree.entries) {
+        const parsed = parseDocPath(e.path);
+        if (!parsed) continue;
+        seen.add(e.path);
+        const cur = this.cache.get(e.path);
+        if (cur?.sha === e.sha) continue;
+        const doc = JSON.parse(await this.api.readBlob(e.sha)) as StoredDoc;
+        this.cache.set(e.path, { sha: e.sha, col: parsed.col, doc });
+        touched.add(parsed.col);
+      }
+    } finally {
+      // 중간에 실패해도 받은 만큼은 보관 → 다음에 나머지만 받는다
+      if (touched.size) this.persist();
     }
     for (const [path, entry] of this.cache) {
       if (!seen.has(path)) {
@@ -101,6 +154,7 @@ export class GitHubRepository implements Repository {
     }
     this.head = tree.headSha;
     this.etag = tree.etag;
+    if (touched.size) this.persist();
     touched.forEach((c) => this.emit(c));
   }
 
@@ -324,6 +378,7 @@ export class GitHubRepository implements Repository {
     }
     this.head = res.headSha;
     this.etag = undefined; // 다음 sync 에서 새 head 기준으로 비교
+    this.persist();
     new Set(planned.map((p) => p.col)).forEach((c) => this.emit(c));
     return true;
   }

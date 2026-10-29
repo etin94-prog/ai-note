@@ -43,6 +43,30 @@ export class GitHubApiError extends Error {
   }
 }
 
+/** GitHub 요청 한도 초과 (403/429). retryAt 이후 다시 시도하면 된다. */
+export class GitHubRateLimitError extends GitHubApiError {
+  constructor(
+    status: number,
+    readonly retryAt: Date,
+  ) {
+    const hhmm = `${String(retryAt.getHours()).padStart(2, '0')}:${String(retryAt.getMinutes()).padStart(2, '0')}`;
+    super(status, `GitHub 요청 한도 초과 · ${hhmm} 이후 자동 재시도`);
+  }
+}
+
+/** 한도 초과 응답이면 다시 시도할 시각, 아니면 null (헤더: retry-after 초 / x-ratelimit-reset 초 단위 시각) */
+export function rateLimitRetryAt(res: { status: number; headers: { get(name: string): string | null } }, now = Date.now()): Date | null {
+  if (res.status !== 403 && res.status !== 429) return null;
+  const after = Number(res.headers.get('retry-after'));
+  if (after > 0) return new Date(now + after * 1000);
+  if (res.headers.get('x-ratelimit-remaining') === '0') {
+    const reset = Number(res.headers.get('x-ratelimit-reset'));
+    return new Date(reset > 0 ? reset * 1000 : now + 60_000);
+  }
+  // 보조 한도(짧은 시간에 너무 많이 요청)는 헤더 없이 403 만 오기도 한다 — 429 는 항상 한도
+  return res.status === 429 ? new Date(now + 60_000) : null;
+}
+
 /** 실제 GitHub REST API 구현. 토큰은 저장소 하나에만 Contents 권한이 있는 fine-grained token (G-01). */
 export class FetchGitHubApi implements GitHubApi {
   private readonly base: string;
@@ -72,7 +96,14 @@ export class FetchGitHubApi implements GitHubApi {
     const exp = res.headers.get('github-authentication-token-expiration');
     if (exp) this.tokenExpiresAt = exp;
     if (res.status === 304) return res;
-    if (!res.ok) throw new GitHubApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`);
+    if (!res.ok) {
+      const retryAt = rateLimitRetryAt(res);
+      if (retryAt) throw new GitHubRateLimitError(res.status, retryAt);
+      // 403 은 본문에 이유가 있다 (보조 한도면 "secondary rate limit")
+      const reason = res.status === 403 ? ((await res.json().catch(() => null)) as { message?: string } | null)?.message : undefined;
+      if (reason && /rate limit/i.test(reason)) throw new GitHubRateLimitError(res.status, new Date(Date.now() + 60_000));
+      throw new GitHubApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}${reason ? ` (${reason})` : ''}`);
+    }
     return res;
   }
 

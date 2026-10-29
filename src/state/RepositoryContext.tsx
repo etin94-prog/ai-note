@@ -2,9 +2,9 @@ import { createContext, type PropsWithChildren, useCallback, useContext, useEffe
 
 import { FirestoreRepository } from '@/data/firebase/FirestoreRepository';
 import { syncChildMirror, type MirrorResult } from '@/data/github/childMirrorSync';
-import { FetchGitHubApi } from '@/data/github/GitHubApi';
+import { FetchGitHubApi, GitHubRateLimitError } from '@/data/github/GitHubApi';
 import { FakeGitHubApi } from '@/data/github/FakeGitHubApi';
-import { GitHubRepository } from '@/data/github/GitHubRepository';
+import { GitHubRepository, localCacheStore } from '@/data/github/GitHubRepository';
 import { MemoryRepository } from '@/data/memory/MemoryRepository';
 import type { Collection, Repository, WriteContext } from '@/data/repository';
 import { MIRROR_REPOS, type MirrorSource } from '@/domain/childMirror';
@@ -71,7 +71,10 @@ export function buildRepo(s: DeviceSettings): Repository | null {
   }
   if (s.mode === 'github' && s.github.token) {
     // 저장하면 화면에 먼저 반영하고 GitHub 전송은 뒤에서 (전송 중·실패는 SavingBar 가 알림)
-    return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token), { optimistic: true });
+    return new GitHubRepository(new FetchGitHubApi({ owner: s.github.owner, repo: s.github.repo }, s.github.token), {
+      optimistic: true,
+      store: localCacheStore(`ai-note.github-cache.v1:${s.github.owner}/${s.github.repo}`),
+    });
   }
   if (s.mode === 'firebase' && s.firebase.familyId) {
     const fb = getFirebase();
@@ -147,31 +150,50 @@ export function RepositoryProvider({ children }: PropsWithChildren) {
     setSettings(s);
   }, []);
 
-  const refresh = useCallback(async () => {
-    if (!(repo instanceof GitHubRepository)) return;
-    try {
-      await repo.sync();
-      setLastSyncAt(new Date().toISOString());
-      setSyncError(null);
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    }
-  }, [repo]);
+  // 요청 한도에 걸리면 풀리는 시각까지 자동 확인을 쉬고, 그때 한 번 다시 가져온다
+  const [retryAt, setRetryAt] = useState(0);
+  const syncNow = useCallback(
+    async (auto: boolean) => {
+      if (!(repo instanceof GitHubRepository)) return;
+      if (auto && Date.now() < retryAt) return;
+      try {
+        await repo.sync();
+        setRetryAt(0);
+        setLastSyncAt(new Date().toISOString());
+        setSyncError(null);
+      } catch (e) {
+        if (e instanceof GitHubRateLimitError) setRetryAt(e.retryAt.getTime());
+        setSyncError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [repo, retryAt],
+  );
+  const refresh = useCallback(() => syncNow(false), [syncNow]);
 
   // GitHub 모드: 앱 열 때 + 화면 복귀 + 1분마다
+  const repoRef = useRef<Repository | null>(null);
   useEffect(() => {
     if (!(repo instanceof GitHubRepository)) return;
-    // GitHub 원격 저장소와 동기화 (상태는 비동기 응답 후에만 바뀜)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    const onVisible = () => document.visibilityState === 'visible' && void refresh();
+    // 저장소가 바뀔 때만 바로 가져온다 (한도 시각이 바뀌어 다시 연결될 때는 건너뜀)
+    if (repoRef.current !== repo) {
+      repoRef.current = repo;
+      void syncNow(true);
+    }
+    const timer = setInterval(() => void syncNow(true), POLL_MS);
+    const onVisible = () => document.visibilityState === 'visible' && void syncNow(true);
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(timer);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [repo, refresh]);
+  }, [repo, syncNow]);
+
+  // 한도가 풀리는 시각(+5초)에 한 번 다시 가져오기
+  useEffect(() => {
+    if (!retryAt) return;
+    const t = setTimeout(() => void syncNow(false), Math.max(0, retryAt - Date.now()) + 5_000);
+    return () => clearTimeout(t);
+  }, [retryAt, syncNow]);
 
   const writeContext = useCallback(
     (label: string): WriteContext => ({ by: settings.memberId || 'unknown', label, device: settings.deviceName || undefined }),

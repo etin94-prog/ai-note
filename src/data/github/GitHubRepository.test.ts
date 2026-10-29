@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { repositoryContract } from '../contract/repositoryContract';
 import type { WriteContext } from '../repository';
 import { FakeGitHubApi } from './FakeGitHubApi';
-import { GitHubRepository } from './GitHubRepository';
+import { rateLimitRetryAt } from './GitHubApi';
+import { type CacheSnapshot, type CacheStore, GitHubRepository } from './GitHubRepository';
 import { docPath, parseDocPath } from './paths';
 
 repositoryContract('GitHubRepository (FakeGitHubApi)', () => new GitHubRepository(new FakeGitHubApi()));
@@ -72,6 +73,30 @@ describe('GitHub 모드 — 여러 기기', () => {
     expect(api.calls.readBlob).toBe(blobs);
   });
 
+  it('기기에 보관한 내용으로 다시 열면 바뀐 파일만 받는다', async () => {
+    const api = new FakeGitHubApi();
+    let saved: CacheSnapshot | null = null;
+    const store: CacheStore = { load: () => saved, save: (s) => (saved = s) };
+    await api.externalCommit([
+      { path: docPath('places', 'home'), content: JSON.stringify({ id: 'home', version: 1, name: '집' }) },
+      { path: docPath('places', 'school'), content: JSON.stringify({ id: 'school', version: 1, name: '학교' }) },
+    ]);
+    await new GitHubRepository(api, { store }).list('places');
+    expect(api.calls.readBlob).toBe(2);
+    await api.externalCommit([{ path: docPath('places', 'home'), content: JSON.stringify({ id: 'home', version: 2, name: '우리집' }) }]);
+    const reopened = new GitHubRepository(api, { store });
+    expect((await reopened.list<{ name: string }>('places')).map((p) => p.name).sort()).toEqual(['우리집', '학교']);
+    expect(api.calls.readBlob).toBe(3);
+  });
+
+  it('동시에 여러 번 sync 해도 파일은 한 번만 받는다', async () => {
+    const api = new FakeGitHubApi();
+    await api.externalCommit([{ path: docPath('places', 'home'), content: JSON.stringify({ id: 'home', version: 1, name: '집' }) }]);
+    const repo = new GitHubRepository(api);
+    await Promise.all([repo.sync(), repo.sync(), repo.list('places')]);
+    expect(api.calls.readBlob).toBe(1);
+  });
+
   it('앱 밖에서 지워진 파일은 캐시에서도 사라진다', async () => {
     const api = new FakeGitHubApi();
     const repo = new GitHubRepository(api);
@@ -79,6 +104,21 @@ describe('GitHub 모드 — 여러 기기', () => {
     await api.externalCommit([{ path: docPath('places', 'home'), content: null }]);
     await repo.sync();
     expect(await repo.list('places')).toHaveLength(0);
+  });
+});
+
+describe('요청 한도 초과 판단', () => {
+  const res = (status: number, h: Record<string, string>) => ({ status, headers: { get: (n: string) => h[n] ?? null } });
+  const now = Date.UTC(2026, 9, 29, 2, 0, 0);
+  it('시간당 한도를 다 쓰면 reset 시각', () => {
+    expect(rateLimitRetryAt(res(403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(now / 1000 + 600) }), now)?.getTime()).toBe(now + 600_000);
+  });
+  it('retry-after 가 있으면 그만큼 뒤', () => {
+    expect(rateLimitRetryAt(res(429, { 'retry-after': '30' }), now)?.getTime()).toBe(now + 30_000);
+  });
+  it('권한 없음 403 은 한도가 아니다', () => {
+    expect(rateLimitRetryAt(res(403, { 'x-ratelimit-remaining': '4000' }), now)).toBeNull();
+    expect(rateLimitRetryAt(res(404, {}), now)).toBeNull();
   });
 });
 
