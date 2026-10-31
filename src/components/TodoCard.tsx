@@ -16,10 +16,12 @@ export function TodoCard() {
   if (items.length === 0) return null;
   return (
     <Card mode="outlined" style={styles.card}>
-      <Card.Title title={`⚠ 처리 필요 (${items.length})`} titleVariant="titleMedium" />
+      <Card.Title title={`처리 필요 ${items.length}건`} titleVariant="titleMedium" />
       {items.slice(0, 5).map((t) => (
         <List.Item
           key={`${t.kind}-${t.billId}`}
+          titleNumberOfLines={0}
+          descriptionNumberOfLines={0}
           style={styles.item}
           title={`${t.childId === 'common' ? '공통' : memberById(t.childId as MemberId)?.name} ${t.title} ${won(t.amount)}`}
           titleStyle={t.kind === 'overdue' ? styles.red : t.kind === 'refund' ? styles.purple : undefined}

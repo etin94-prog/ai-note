@@ -1,11 +1,13 @@
+import { Button } from '@/components/ActionButton';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 
 import { today } from '@/domain/dates';
 import { monthSummary, won } from '@/domain/money';
 import { useMoney } from '@/state/useMoney';
+import { PALETTE } from '@/lib/theme';
 
 /** 홈 이달 학원비 요약 (4.3, X-17) — 부모 전용 */
 export function MoneySummaryCard() {
@@ -51,6 +53,6 @@ export function MoneySummaryCard() {
 const styles = StyleSheet.create({
   card: { marginBottom: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10 },
-  cell: { width: '50%' },
-  dim: { opacity: 0.65 },
+  cell: { flexGrow: 1, flexBasis: 150, minWidth: 0 },
+  dim: { color: PALETTE.sub },
 });

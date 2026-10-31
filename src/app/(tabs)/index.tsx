@@ -1,9 +1,9 @@
+import { Button } from '@/components/ActionButton';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 
-import { DashboardTiles } from '@/components/DashboardTiles';
 import { InboxBanner } from '@/components/InboxBanner';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { LiveStatusCard } from '@/components/LiveStatusCard';
@@ -69,19 +69,19 @@ export default function HomeScreen() {
       )}
     </View>
   );
-  // 빠른 실행: 폰에서도 한 줄에 같은 폭으로
+  // 모바일에서는 주 동작을 한 줄로 확보하고 보조 동작을 다음 줄에 배치한다.
   const quick = repo && !readOnly && (
-    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-      <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained" icon="calendar-plus" onPress={() => router.push({ pathname: '/event', params: { date: d } })}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+      <Button contentStyle={{ minHeight: 48 }} style={wide ? { minWidth: 160 } : { width: '100%' }} mode="contained" icon="calendar-plus" onPress={() => router.push({ pathname: '/event', params: { date: d } })}>
         일정 추가
       </Button>
       {!isChild && (
-        <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained-tonal" icon="message-text-outline" onPress={() => router.push('/input')}>
+        <Button contentStyle={{ minHeight: 48 }} style={{ flexGrow: wide ? 0 : 1, minWidth: 140 }} mode="contained-tonal" icon="message-text-outline" onPress={() => router.push('/input')}>
           채팅 입력
         </Button>
       )}
       {!isChild && (
-        <Button style={wide ? { minWidth: 160 } : { flex: 1 }} compact mode="contained-tonal" icon="cash-check" onPress={() => router.push('/cost')}>
+        <Button contentStyle={{ minHeight: 48 }} style={{ flexGrow: wide ? 0 : 1, minWidth: 140 }} mode="contained-tonal" icon="cash-check" onPress={() => router.push('/cost')}>
           학원비
         </Button>
       )}
@@ -93,9 +93,7 @@ export default function HomeScreen() {
       <SyncIndicator />
       {repo && header}
       {repo && <InboxBanner />}
-      {repo && !needSetup && <DashboardTiles occurrences={occurrences} isChild={isChild} />}
       {quick}
-      <InstallPrompt />
       {!repo ? (
         <Card style={{ marginBottom: 12 }}>
           <Card.Title title="처음 설정" titleVariant="titleMedium" />
@@ -123,10 +121,11 @@ export default function HomeScreen() {
               </Card.Actions>
             </Card>
           )}
-          <Columns flex={[1, 1.2, 1]}>
+          {!isChild && <TodoCard />}
+          <Columns flex={[1.5, 1]}>
             {[
+              <View key="today">{todayCard}</View>,
               <View key="now">
-                {!isChild && <TodoCard />}
                 <Text variant="titleMedium" style={{ marginBottom: 8 }}>
                   {isChild ? '지금' : '아이들 지금'}
                 </Text>
@@ -134,8 +133,7 @@ export default function HomeScreen() {
                   <LiveStatusCard key={m.id} member={m} todays={visibleFor(occurrences, m.id)} now={nowLocal(now)} />
                 ))}
               </View>,
-              <View key="today">{todayCard}</View>,
-              !isChild && wide ? (
+              !isChild ? (
                 <View key="money">
                   <MoneySummaryCard />
                 </View>
@@ -144,6 +142,7 @@ export default function HomeScreen() {
           </Columns>
         </>
       )}
+      <InstallPrompt />
     </Screen>
   );
 }

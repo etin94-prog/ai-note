@@ -20,6 +20,7 @@ export function TimeField({ label, value, onChange, after }: { label: string; va
         mode="outlined"
         dense
         label={label}
+        accessibilityLabel={label}
         value={text}
         keyboardType="numbers-and-punctuation"
         placeholder="19:00"
@@ -41,7 +42,7 @@ export function TimeField({ label, value, onChange, after }: { label: string; va
 }
 
 /** 'YYYY-MM-DD' 날짜 입력 */
-export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function DateField({ label, value, onChange, onValidityChange }: { label: string; value: string; onChange: (v: string) => void; onValidityChange?: (valid: boolean) => void }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
@@ -53,12 +54,17 @@ export function DateField({ label, value, onChange }: { label: string; value: st
     <View style={styles.flex}>
       <TextInput
         mode="outlined"
-        dense
         label={label}
+        accessibilityLabel={label}
         value={text}
         placeholder="2026-11-09"
         keyboardType="numbers-and-punctuation"
-        onChangeText={setText}
+        onChangeText={(next) => {
+          setText(next);
+          const normalized = next.trim().replace(/[./]/g, '-');
+          onValidityChange?.(isValidDate(normalized));
+          if (isValidDate(normalized)) onChange(normalized);
+        }}
         onBlur={() => {
           const t = text.trim().replace(/[./]/g, '-');
           const ok = t === '' || isValidDate(t);
@@ -123,6 +129,6 @@ export function Label({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
   label: { marginTop: 12 },
 });

@@ -1,6 +1,7 @@
+import { Button } from '@/components/ActionButton';
 import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { ulid } from 'ulid';
 
 import { appendLog, clearLog, loadLog, type LogLine } from '@/chat/history';
@@ -30,6 +31,7 @@ import { type Academy, memberById, type MemberId, type Place } from '@/domain/ty
 import { useRepository } from '@/state/RepositoryContext';
 import { useCollection } from '@/state/useCollection';
 import { useMoney } from '@/state/useMoney';
+import { PALETTE } from '@/lib/theme';
 
 const KINDS: { kind: ChatKind; icon: string }[] = [
   { kind: 'event', icon: 'calendar-plus' },
@@ -221,7 +223,7 @@ export function GuidedChat() {
           },
           m.old && styles.old,
         ]}>
-        <Text>{m.text}</Text>
+        <Text variant="bodyMedium">{m.text}</Text>
         {m.undo && (
           <Button compact icon="undo" onPress={m.undo} style={styles.start}>
             되돌리기
@@ -233,6 +235,7 @@ export function GuidedChat() {
 
   return (
     <View style={styles.wrap}>
+      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" style={styles.log} contentContainerStyle={styles.logInner}>
       <View style={styles.kinds}>
         {KINDS.map((k) => (
           <Chip key={k.kind} icon={k.icon} compact selected={state.kind === k.kind} showSelectedOverlay onPress={() => pickKind(k.kind)}>
@@ -246,7 +249,6 @@ export function GuidedChat() {
         )}
       </View>
 
-      <ScrollView ref={scroll} style={styles.log} contentContainerStyle={styles.logInner}>
         {msgs.some((m) => m.old) && (
           <View style={styles.oldBar}>
             <Text variant="labelSmall" style={styles.dim}>
@@ -274,8 +276,6 @@ export function GuidedChat() {
         )}
         {paste && <ImportPreview items={paste} onDone={(msg) => restart(msg)} />}
         {cardTx && <CardImport txns={cardTx} onDone={(msg) => restart(msg)} />}
-      </ScrollView>
-
       {step.type === 'ask' && (step.choices.length > 0 || step.optional || step.allowNew) && (
         <View style={styles.kinds}>
           {step.choices.map((c) => (
@@ -291,11 +291,13 @@ export function GuidedChat() {
           {step.allowNew && <Text style={styles.hint}>목록에 없으면 학원 이름을 쓰세요</Text>}
         </View>
       )}
-      {error ? <Text style={[styles.hint, { color: theme.colors.error }]}>{error}</Text> : null}
+      </ScrollView>
+      {error ? <Text accessibilityLiveRegion="polite" style={[styles.hint, { color: theme.colors.error }]}>{error}</Text> : null}
       <View style={styles.inputRow}>
         <TextInput
           mode="outlined"
-          dense
+          label="메시지"
+          accessibilityLabel="메시지"
           multiline
           style={styles.input}
           placeholder={step.type === 'ask' ? '답 입력 (짧게)' : '한 문장으로 쓰거나 결제 안내 문자를 붙여넣기'}
@@ -307,13 +309,13 @@ export function GuidedChat() {
               shiftKey?: boolean;
               isComposing?: boolean;
             };
-            if (ne.key === 'Enter' && !ne.shiftKey && !ne.isComposing) {
+            if (Platform.OS === 'web' && ne.key === 'Enter' && !ne.shiftKey && !ne.isComposing) {
               (e as unknown as { preventDefault?: () => void }).preventDefault?.();
               send();
             }
           }}
         />
-        <IconButton icon="send" mode="contained" disabled={!text.trim()} onPress={send} accessibilityLabel="보내기" />
+        <IconButton style={{ width: 48, height: 48 }} icon="send" mode="contained" disabled={!text.trim() || saving} onPress={send} accessibilityLabel="보내기" />
       </View>
     </View>
   );
@@ -366,7 +368,7 @@ const styles = StyleSheet.create({
     gap: 6,
     alignItems: 'center',
   },
-  log: { flex: 1, minHeight: 280 },
+  log: { flex: 1, minHeight: 0 },
   logInner: { gap: 8, paddingVertical: 8 },
   row: { flexDirection: 'row' },
   rowMe: { justifyContent: 'flex-end' },
@@ -376,20 +378,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  old: { opacity: 0.5 },
+  old: { borderWidth: 1, borderColor: PALETTE.lineStrong },
   oldBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dim: { opacity: 0.6 },
+  dim: { color: PALETTE.sub },
   start: { alignSelf: 'flex-start' },
   card: { marginVertical: 4 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lineLabel: { width: 72, opacity: 0.7 },
+  line: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  lineLabel: { width: 72, color: PALETTE.sub },
   lineValue: { flex: 1, fontWeight: '600' },
   actions: { flexWrap: 'wrap' },
-  hint: { opacity: 0.7, fontSize: 12 },
+  hint: { color: PALETTE.sub, fontSize: 14, lineHeight: 21 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   input: { flex: 1, maxHeight: 120 },
 });

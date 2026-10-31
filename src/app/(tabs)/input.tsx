@@ -1,7 +1,8 @@
+import { Button } from '@/components/ActionButton';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Card, HelperText, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Card, HelperText, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { CardImport } from '@/components/CardImport';
 import { GuidedChat } from '@/components/GuidedChat';
@@ -15,6 +16,8 @@ import { parseScheduleNotice, type ScheduleNotice } from '@/domain/scheduleNotic
 import { readWorkbook } from '@/io/excel/workbook';
 import { pickFiles, XLSX_MIME } from '@/lib/files';
 import { useRepository } from '@/state/RepositoryContext';
+import { PALETTE } from '@/lib/theme';
+import { useLayout } from '@/lib/useLayout';
 
 type Mode = 'chat' | 'paste' | 'file' | 'card';
 
@@ -62,6 +65,7 @@ async function readCardFiles(files: File[]): Promise<{ txns: CardTxn[]; notes: s
  */
 export default function InputScreen() {
   const { repo, isChild } = useRepository();
+  const { tablet } = useLayout();
   const shared = useLocalSearchParams<{ title?: string; text?: string; url?: string }>();
   const sharedText = [shared.title, shared.text, shared.url].filter((x) => typeof x === 'string' && x.trim()).join('\n');
   const [mode, setMode] = useState<Mode>(sharedText ? 'paste' : 'chat');
@@ -71,6 +75,8 @@ export default function InputScreen() {
   // 수업 일정 공지 (카톡·문자) → 날짜별 일정
   const [notice, setNotice] = useState<ScheduleNotice | null>(() => (sharedText ? parseScheduleNotice(sharedText, today()) : null));
   const [files, setFiles] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [snack, setSnack] = useState<{ text: string; undo?: () => void } | null>(null);
 
   if (isChild)
@@ -90,6 +96,14 @@ export default function InputScreen() {
     setItems(parsePasted(text, today()));
     setCard(parseCardSms(text, today()));
     setNotice(parseScheduleNotice(text, today()));
+  };
+  const runImport = async (operation: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try { await operation(); }
+    catch (e) { setError(e instanceof Error ? e.message : '파일을 읽지 못했습니다. 파일 형식을 확인해 주세요.'); }
+    finally { setBusy(false); }
   };
   const loadFiles = async () => {
     const picked = await pickTextFiles();
@@ -116,31 +130,38 @@ export default function InputScreen() {
     }
   };
 
-  const tabs = (
+  const modes = [
+    { value: 'chat', label: '채팅' },
+    { value: 'paste', label: '붙여넣기' },
+    { value: 'file', label: '카톡 파일' },
+    { value: 'card', label: '카드 내역' },
+  ];
+  const changeMode = (v: string) => {
+    if (busy) return;
+    setMode(v as Mode);
+    setItems(null);
+    setCard(null);
+    setNotice(null);
+    setFiles([]);
+    setError('');
+  };
+  const tabs = tablet ? (
     <SegmentedButtons
       value={mode}
-      onValueChange={(v) => {
-        setMode(v as Mode);
-        setItems(null);
-        setCard(null);
-        setNotice(null);
-        setFiles([]);
-      }}
-      buttons={[
-        { value: 'chat', label: '채팅' },
-        { value: 'paste', label: '붙여넣기' },
-        { value: 'file', label: '카톡' },
-        { value: 'card', label: '카드' },
-      ]}
+      onValueChange={changeMode}
+      buttons={modes.map((m) => ({ ...m, disabled: busy }))}
     />
-  );
+  ) : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+    {modes.map((m) => <Button key={m.value} style={{ flexBasis: 140, flexGrow: 1 }} mode={mode === m.value ? 'contained' : 'outlined'} accessibilityState={{ selected: mode === m.value }} disabled={busy} onPress={() => changeMode(m.value)}>{m.label}</Button>)}
+  </View>;
 
   if (mode === 'chat')
     return (
-      <View style={styles.chat}>
+      <KeyboardAvoidingView style={styles.chat} enabled={Platform.OS !== 'web'} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={80}>
         {tabs}
+        <Text style={styles.dim}>일정·납부를 대화로 입력하고, 저장 전에 내용을 확인하세요.</Text>
         <GuidedChat />
-      </View>
+      </KeyboardAvoidingView>
     );
 
   const nothing = mode === 'paste' && items?.length === 0 && card?.length === 0 && !notice;
@@ -149,6 +170,8 @@ export default function InputScreen() {
     <View style={styles.fill}>
       <Screen wide>
         {tabs}
+        <Text style={styles.steps}>{items?.length || card?.length || notice ? '2. 해석 결과 확인 → 3. 선택한 항목 저장' : '1. 내용 붙여넣기 또는 파일 선택 → 2. 확인 → 3. 저장'}</Text>
+        {error ? <Text accessibilityLiveRegion="polite" style={{ color: '#B91C1C' }}>{error}</Text> : null}
 
         {mode === 'paste' && (
           <Card mode="outlined" style={styles.card}>
@@ -158,6 +181,8 @@ export default function InputScreen() {
               </Text>
               <TextInput
                 mode="outlined"
+                label="학원 안내·카드 승인 문자"
+                accessibilityLabel="학원 안내·카드 승인 문자"
                 multiline
                 numberOfLines={8}
                 placeholder={'예)\n《OO학원》 결제 안내\n◆ 학생명 : 홍길동\n◆ 청구 총액 : 360,000 원'}
@@ -194,7 +219,7 @@ export default function InputScreen() {
               <Text variant="bodySmall" style={styles.dim}>
                 파일은 이 기기 안에서만 읽고, 원문은 저장하지 않습니다. 청구·납부 정보만 가족 데이터에 저장됩니다. PC 사용을 권장합니다.
               </Text>
-              <Button mode="contained" icon="folder-open-outline" onPress={() => void loadFiles()} style={styles.start}>
+              <Button mode="contained" icon="folder-open-outline" loading={busy} disabled={busy} onPress={() => void runImport(loadFiles)} style={styles.start}>
                 파일 선택
               </Button>
               {files.length > 0 && (
@@ -215,7 +240,7 @@ export default function InputScreen() {
               <Text variant="bodySmall" style={styles.dim}>
                 파일은 이 기기 안에서만 읽습니다. 학원이 아닌 거래는 저장하지 않습니다. 카드 비밀번호·로그인 정보는 필요 없습니다.
               </Text>
-              <Button mode="contained" icon="credit-card-search-outline" onPress={() => void loadCardFiles()} style={styles.start}>
+              <Button mode="contained" icon="credit-card-search-outline" loading={busy} disabled={busy} onPress={() => void runImport(loadCardFiles)} style={styles.start}>
                 이용내역 파일 선택
               </Button>
               {files.map((n) => (
@@ -251,6 +276,7 @@ const styles = StyleSheet.create({
   paste: { minHeight: 160 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   bold: { fontWeight: '700' },
-  dim: { opacity: 0.7 },
+  dim: { color: PALETTE.sub, fontSize: 14, lineHeight: 21 },
+  steps: { color: PALETTE.sub, fontSize: 14, lineHeight: 21, marginVertical: 16 },
   start: { alignSelf: 'flex-start' },
 });

@@ -22,6 +22,7 @@ export function MoneyInput({
       <TextInput
         mode="outlined"
         label={label}
+        accessibilityLabel={label}
         value={value ? value.toLocaleString('ko-KR') : ''}
         onChangeText={(t) => onChange(Number(t.replace(/[^\d]/g, '')) || 0)}
         keyboardType="number-pad"

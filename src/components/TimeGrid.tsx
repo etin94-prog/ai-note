@@ -7,7 +7,7 @@ import { layoutLanes } from '@/domain/layout';
 import type { Occurrence } from '@/domain/schedule';
 import { memberById, WEEKDAY_LABELS } from '@/domain/types';
 
-const HOUR_H = 44;
+const HOUR_H = 72;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -72,6 +72,7 @@ export function TimeGrid({
                   return (
                     <Pressable
                       key={time}
+                      testID="timetable-slot"
                       accessibilityRole="button"
                       accessibilityLabel={`${Number(d.slice(5, 7))}월 ${Number(d.slice(8))}일 ${time} 추가`}
                       onPress={() => onEmptyPress(d, time)}
@@ -95,10 +96,12 @@ export function TimeGrid({
                 return (
                   <Pressable
                     key={o.key}
+                    testID="timetable-block"
                     accessibilityRole="button"
                     accessibilityLabel={`${o.title} ${o.start}~${o.end}`}
                     onPress={() => (onSelect ? onSelect(o.key) : router.push({ pathname: '/occurrence', params: { key: o.key } }))}
-                    style={[
+                    accessibilityState={{ selected: o.key === selectedKey }}
+                    style={({ pressed }) => [
                       styles.block,
                       {
                         top,
@@ -110,6 +113,7 @@ export function TimeGrid({
                       },
                       o.status !== 'normal' && styles.off,
                       o.key === selectedKey && styles.sel,
+                      pressed && { backgroundColor: '#DBEAFE' },
                     ]}>
                     {/* 제목(과목·선생님 또는 학원) → 학원·과정 → 시간. 칸 높이만큼 보이고 넘치면 잘림 */}
                     <Text style={[styles.blockTitle, big && styles.blockTitleBig, o.status !== 'normal' && styles.strike]}>{o.title}</Text>
@@ -127,16 +131,16 @@ export function TimeGrid({
 }
 
 const styles = StyleSheet.create({
-  blockTitle: { fontSize: 12, lineHeight: 15, fontWeight: '700' },
-  blockTitleBig: { fontSize: 14, lineHeight: 18 },
-  blockSub: { fontSize: 11, lineHeight: 14, opacity: 0.85 },
-  blockSubBig: { fontSize: 12, lineHeight: 16 },
-  blockTime: { fontSize: 11, lineHeight: 14, opacity: 0.7 },
+  blockTitle: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  blockTitleBig: { fontSize: 16, lineHeight: 22 },
+  blockSub: { fontSize: 13, lineHeight: 18, color: '#374151' },
+  blockSubBig: { fontSize: 13, lineHeight: 18 },
+  blockTime: { fontSize: 13, lineHeight: 18, color: '#4B5563' },
   headerRow: { flexDirection: 'row', marginBottom: 4 },
-  hourCol: { width: 22 },
-  hourText: { height: HOUR_H, fontSize: 10, opacity: 0.6, textAlign: 'right', paddingRight: 3 },
+  hourCol: { width: 32 },
+  hourText: { height: HOUR_H, fontSize: 13, color: '#4B5563', textAlign: 'right', paddingRight: 6 },
   dayCol: { flex: 1, minWidth: 0 },
-  dayLabel: { textAlign: 'center', fontSize: 12, lineHeight: 15 },
+  dayLabel: { textAlign: 'center', fontSize: 14, lineHeight: 21 },
   today: { color: '#2563EB', fontWeight: '700' },
   body: { flexDirection: 'row' },
   dayBody: { position: 'relative', borderLeftWidth: StyleSheet.hairlineWidth, borderColor: '#D1D5DB' },
@@ -145,7 +149,7 @@ const styles = StyleSheet.create({
   slot: { position: 'absolute', left: 0, right: 0 },
   slotHover: { backgroundColor: '#2563EB14' },
   block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 4, paddingHorizontal: 3, paddingTop: 2, overflow: 'hidden' },
-  off: { opacity: 0.45 },
+  off: { backgroundColor: '#F3F4F6' },
   sel: { borderColor: '#2563EB', borderWidth: 2 },
   strike: { textDecorationLine: 'line-through' },
 });

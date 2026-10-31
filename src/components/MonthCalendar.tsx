@@ -48,8 +48,9 @@ export function MonthCalendar({
                 key={d.date}
                 onPress={() => onSelect(d.date)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: on }}
                 accessibilityLabel={`${Number(d.date.slice(5, 7))}월 ${Number(d.date.slice(8))}일 일정 ${list.length}건`}
-                style={[styles.cell, on && styles.cellOn, !d.inMonth && styles.out]}>
+                style={({ pressed }) => [styles.cell, on && styles.cellOn, !d.inMonth && styles.out, pressed && { backgroundColor: '#DBEAFE' }]}>
                 <View style={[styles.num, d.date === t && styles.todayNum]}>
                   <Text style={[styles.numText, i >= 5 && styles.weekend, d.date === t && styles.todayText]}>{Number(d.date.slice(8))}</Text>
                 </View>
@@ -74,12 +75,12 @@ const styles = StyleSheet.create({
   weekend: { color: '#DC2626' },
   cell: { flex: 1, minHeight: 58, alignItems: 'center', paddingVertical: 4, borderRadius: 10, gap: 2 },
   cellOn: { backgroundColor: PALETTE.tint },
-  out: { opacity: 0.35 },
-  num: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  out: { backgroundColor: '#F3F4F6' },
+  num: { minWidth: 28, minHeight: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   todayNum: { backgroundColor: '#2563EB' },
   numText: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
   todayText: { color: '#FFFFFF' },
   dots: { flexDirection: 'row', gap: 3, height: 6 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  count: { fontSize: 10, color: PALETTE.sub },
+  count: { fontSize: 13, color: PALETTE.sub },
 });

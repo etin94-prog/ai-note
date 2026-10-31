@@ -1,4 +1,5 @@
 import { configureFonts, MD3LightTheme } from 'react-native-paper';
+import { Platform } from 'react-native';
 
 import { THEME_COLOR } from './config';
 
@@ -12,20 +13,27 @@ export const PALETTE = {
   line: '#E3E7EF',
   lineStrong: '#CDD4E0',
   text: '#1F2937',
-  sub: '#6B7280',
+  sub: '#4B5563',
   tint: '#EEF3FF',
 } as const;
 
 /** 글꼴: Pretendard(웹 글꼴) → 없으면 기기 기본 한글 글꼴 */
 export const FONT_FAMILY =
-  "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif";
+  Platform.OS === 'web' ? "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif" : Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
 /** 금액·시각처럼 세로로 줄 맞춰 읽는 숫자 */
 export const NUM = { fontVariant: ['tabular-nums' as const] };
 
 export const theme = {
   ...MD3LightTheme,
-  fonts: configureFonts({ config: { fontFamily: FONT_FAMILY } }),
+  fonts: { ...configureFonts({ config: { fontFamily: FONT_FAMILY } }),
+    default: { ...MD3LightTheme.fonts.default, fontFamily: FONT_FAMILY, fontSize: 16, lineHeight: 24 },
+    bodyLarge: { ...MD3LightTheme.fonts.bodyLarge, fontFamily: FONT_FAMILY, fontSize: 16, lineHeight: 24 },
+    bodyMedium: { ...MD3LightTheme.fonts.bodyMedium, fontFamily: FONT_FAMILY, fontSize: 16, lineHeight: 24 },
+    bodySmall: { ...MD3LightTheme.fonts.bodySmall, fontFamily: FONT_FAMILY, fontSize: 14, lineHeight: 21 },
+    labelSmall: { ...MD3LightTheme.fonts.labelSmall, fontFamily: FONT_FAMILY, fontSize: 13, lineHeight: 20 },
+    labelMedium: { ...MD3LightTheme.fonts.labelMedium, fontFamily: FONT_FAMILY, fontSize: 14, lineHeight: 20 },
+  },
   colors: {
     ...MD3LightTheme.colors,
     primary: THEME_COLOR,
