@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ReminderPump } from '@/components/ReminderPump';
 import { SavingBar } from '@/components/SavingBar';
+import { UpdateChecker } from '@/components/UpdateChecker';
 import { FONT_FAMILY, PALETTE, theme } from '@/lib/theme';
 import { RepositoryProvider } from '@/state/RepositoryContext';
 
@@ -42,6 +43,7 @@ export default function RootLayout() {
         <ThemeProvider value={navTheme}>
           <RepositoryProvider>
             <ReminderPump />
+            <UpdateChecker />
             <Stack
               screenOptions={({ navigation }) => ({
                 headerShown: true,

@@ -95,6 +95,23 @@ describe('수업 일정 공지 해석', () => {
     expect(s.warnings).toEqual([]);
   });
 
+  it('목록 괄호 속 "+1.5H 2회 줌 수업, 총 4회" 는 날짜가 아님, 과목 "정보2B"', () => {
+    const INFO = `[가나다T가나영1 정보2B(일) 개강 안내]
+[Web발신]
+안녕하세요 가상에듀입니다.
+-시간: 일요일 오후1-4시
+-개강: 11월 1일 일요일 오후1-4시
+-일정: 11/1, 8, 22 (+1.5H 2회 개인 맞춤 줌 수업, 총 4회)
+-강의실: 가상 별관(가상로462 가상빌딩 5층) 1강의실 https://example.com/b
+(주)가상에듀`;
+    const n = parseScheduleNotice(INFO, '2026-10-31')!;
+    expect(n.title).toBe('정보2B 가나다T');
+    expect([n.start, n.end]).toEqual(['13:00', '16:00']);
+    expect(n.sessions.map((s) => s.date)).toEqual(['2026-11-01', '2026-11-08', '2026-11-22']);
+    expect(n.warnings).toEqual(['공지에는 4회인데 날짜는 3개를 찾았습니다']);
+    expect(n.place).toBe('가상로462 가상빌딩 5층');
+  });
+
   it('요일 표시가 실제와 다르면 알려 줌, 일정 공지가 아니면 null', () => {
     const w = parseScheduleNotice('수업시간: 6:00-8:00\n수업일정: 10/24(금), 10/31', '2026-10-22')!;
     expect(w.warnings[0]).toContain('토요일');

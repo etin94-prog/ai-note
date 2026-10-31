@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, FAB, IconButton, SegmentedButtons, Snackbar, Text } from 'react-native-paper';
 
@@ -24,6 +24,18 @@ import { useOccurrences } from '@/state/useCollection';
 
 type View3 = 'day' | 'week' | 'grid' | 'month';
 
+/** 마지막에 고른 보기 (이 기기에만 기억) */
+const VIEW_KEY = 'ai-note.schedule-view.v1';
+const VIEWS: View3[] = ['day', 'week', 'grid', 'month'];
+function loadView(): View3 | null {
+  try {
+    const v = globalThis.localStorage?.getItem(VIEW_KEY);
+    return VIEWS.includes(v as View3) ? (v as View3) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 일정: 하루 / 주간 목록 / 주간 시간표 격자, 사람 필터 (S-V1, S-V2, S-V4).
  * PC: 넓은 시간표 기본 + 누르면 오른쪽 상세 패널 (X-19).
@@ -31,7 +43,21 @@ type View3 = 'day' | 'week' | 'grid' | 'month';
 export default function ScheduleScreen() {
   const { repo, readOnly, isChild, settings } = useRepository();
   const { wide, width } = useLayout();
-  const [view, setView] = useState<View3>(wide ? 'grid' : 'day');
+  const [view, setViewState] = useState<View3>(wide ? 'grid' : 'day');
+  // localStorage 는 hydration 이 끝난 뒤에만 읽을 수 있다
+  useEffect(() => {
+    const saved = loadView();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved) setViewState(saved);
+  }, []);
+  const setView = (v: View3) => {
+    setViewState(v);
+    try {
+      globalThis.localStorage?.setItem(VIEW_KEY, v);
+    } catch {
+      // 기억 못 해도 지금 화면은 바뀜
+    }
+  };
   const [day, setDay] = useState(today());
   const [member, setMember] = useState<MemberId | 'all'>('all');
   const [selected, setSelected] = useState<string | null>(null);
@@ -42,7 +68,7 @@ export default function ScheduleScreen() {
   const [prevWide, setPrevWide] = useState(wide);
   if (wide !== prevWide) {
     setPrevWide(wide);
-    if (wide && view === 'day') setView('grid');
+    if (wide && view === 'day') setViewState('grid');
   }
 
   const monday = mondayOf(day);

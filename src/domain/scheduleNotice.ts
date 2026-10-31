@@ -37,14 +37,16 @@ export interface ScheduleNotice {
 const pad = (n: number) => String(n).padStart(2, '0');
 const DATE_RE = /(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\(\s*([월화수목금토일])\s*\))?/g;
 // 날짜 목록 줄: "10/25" 또는 앞 날짜의 월을 잇는 "15" (요일 표시 선택)
-const LIST_DATE_RE = /(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\(\s*([월화수목금토일])\s*\))?|(?<![\d/])(\d{1,2})(?![\d/:])(?:\s*\(\s*([월화수목금토일])\s*\))?/g;
+// 월 없는 숫자 뒤에 회·시·H·층 등이 오면 날짜가 아님 ("2회", "1.5H", "5층")
+const LIST_DATE_RE =
+  /(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\(\s*([월화수목금토일])\s*\))?|(?<![\d/.])(\d{1,2})(?![\d/:.])(?!\s*(?:회|시|분|층|강|번|명|차|주|개월|H|h))(?:\s*\(\s*([월화수목금토일])\s*\))?/g;
 const COUNT_RE = /\(\s*(?:총\s*)?(\d{1,2})\s*회\s*\)/;
 const MARK = '(am|pm|오전|오후|저녁|밤|아침)';
 // 오전/오후 표시 + 시각 (7:15, 7시, 7시 15분)
 const TIME_RE = new RegExp(`${MARK}?\\s*(\\d{1,2})\\s*(?::\\s*(\\d{2})|시(?:\\s*(\\d{1,2})\\s*분)?)`, 'gi');
 // "오후4-7시", "8:15-11:15" — 숫자-숫자는 ':' · '시' · 오전오후 표시가 있을 때만 시간대 ("1-2 기말", 전화번호 제외)
 const RANGE_RE = new RegExp(`${MARK}?\\s*(\\d{1,2})(?::(\\d{2}))?\\s*[-~–]\\s*${MARK}?\\s*(\\d{1,2})(?::(\\d{2}))?\\s*(시)?`, 'gi');
-const SUBJECT_RE = /(지구과학|생명과학|통합과학|통합사회|한국사|화학|물리|생명|생물|지구|국어|영어|수학|과학|사회|역사|정보|코딩|논술)(?:[1-9](?![\d/])|Ⅰ|Ⅱ)?/;
+const SUBJECT_RE = /(지구과학|생명과학|통합과학|통합사회|한국사|화학|물리|생명|생물|지구|국어|영어|수학|과학|사회|역사|정보|코딩|논술)(?:[1-9][A-Z]?(?![\d/A-Za-z])|Ⅰ|Ⅱ)?/;
 
 /** 오전·오후 표시가 없으면 1~8시는 오후로 본다 (학원 수업은 대부분 방과 후) */
 function toTime(marker: string | undefined, h: number, m: number): string | null {
@@ -86,8 +88,12 @@ function datesIn(line: string, today: string, list = false): { date: string; lab
   let y = Number(today.slice(0, 4));
   let month = 0;
   let lastDay = 0;
-  // 목록 줄은 "-일정:" 머리말과 "(총 7회)" 를 빼고 읽는다
-  const text = list ? line.replace(/^[^:：]*[:：]/, '').replace(new RegExp(COUNT_RE.source, 'g'), '') : line;
+  // 목록 줄은 "-일정:" 머리말과 괄호 속 덧붙임("(총 7회)", "(+1.5H 2회 줌 수업, 총 4회)")을 빼고 읽는다 — 요일 표시 "(수)" 는 남김
+  const text = list
+    ? line
+        .replace(/^[^:：]*[:：]/, '')
+        .replace(/\(([^()]*)\)/g, (m, inner: string) => (/^\s*[월화수목금토일]\s*$/.test(inner) ? m : ' '))
+    : line;
   for (const m of text.matchAll(list ? LIST_DATE_RE : DATE_RE)) {
     let mo: number;
     let d: number;
@@ -169,7 +175,7 @@ export function parseScheduleNotice(raw: string, today: string): ScheduleNotice 
     const sp = special.get(date);
     return sp ? { date, start: sp.start, end: sp.end ?? end!, special: true } : { date, start, end: end! };
   });
-  const count = COUNT_RE.exec(lines[listLine.i]) ?? COUNT_RE.exec(raw);
+  const count = COUNT_RE.exec(lines[listLine.i]) ?? /총\s*(\d{1,2})\s*회/.exec(lines[listLine.i]) ?? COUNT_RE.exec(raw);
   if (count && Number(count[1]) !== sessions.length) warnings.push(`공지에는 ${count[1]}회인데 날짜는 ${sessions.length}개를 찾았습니다`);
   if (endGuessed) warnings.push(`끝 시각이 공지에 없어 ${end}로 추정했습니다. 맞는지 확인해 주세요`);
 
