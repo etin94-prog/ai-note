@@ -114,6 +114,17 @@ describe('findConflicts', () => {
     const occ2 = expandOccurrences({ ...extra, exceptions: [{ id: key, data: { occurrenceKey: key, status: 'cancelled' } }] });
     expect(findConflicts(occ2).size).toBe(0);
   });
+
+  it('수업 시간 안의 시험은 겹침이 아님', () => {
+    const occ = expandOccurrences({
+      ...base,
+      events: [
+        ...base.events,
+        { id: 'ex1', data: { kind: 'exam' as const, title: '수학 단원평가', targets: ['son' as const], date: '2026-11-09', start: '18:00', end: '19:00', createdBy: 'dad' as const } },
+      ],
+    });
+    expect(findConflicts(occ).has(occurrenceKey('event', 'ex1', '2026-11-09', '18:00'))).toBe(false);
+  });
 });
 
 describe('liveStatus (S-V1)', () => {

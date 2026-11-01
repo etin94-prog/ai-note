@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { today } from '@/domain/dates';
 import { monthGrid } from '@/domain/insights';
 import type { Occurrence } from '@/domain/schedule';
-import { memberById } from '@/domain/types';
+import { EXAM_COLOR, isExamKind, memberById } from '@/domain/types';
 import { PALETTE } from '@/lib/theme';
 
 const HEAD = ['월', '화', '수', '목', '금', '토', '일'];
@@ -42,6 +42,7 @@ export function MonthCalendar({
           {w.map((d, i) => {
             const list = byDate.get(d.date) ?? [];
             const colors = [...new Set(list.flatMap((o) => o.targets.map((m) => memberById(m)?.color ?? '#9CA3AF')))].slice(0, 4);
+            const exams = list.filter((o) => isExamKind(o.kind)).length;
             const on = d.date === selected;
             return (
               <Pressable
@@ -49,8 +50,8 @@ export function MonthCalendar({
                 onPress={() => onSelect(d.date)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={`${Number(d.date.slice(5, 7))}월 ${Number(d.date.slice(8))}일 일정 ${list.length}건`}
-                style={({ pressed }) => [styles.cell, on && styles.cellOn, !d.inMonth && styles.out, pressed && { backgroundColor: '#DBEAFE' }]}>
+                accessibilityLabel={`${Number(d.date.slice(5, 7))}월 ${Number(d.date.slice(8))}일 일정 ${list.length}건${exams ? `, 시험 ${exams}건` : ''}`}
+                style={({ pressed }) => [styles.cell, exams > 0 && styles.cellExam, on && styles.cellOn, !d.inMonth && styles.out, pressed && { backgroundColor: '#DBEAFE' }]}>
                 <View style={[styles.num, d.date === t && styles.todayNum]}>
                   <Text style={[styles.numText, i >= 5 && styles.weekend, d.date === t && styles.todayText]}>{Number(d.date.slice(8))}</Text>
                 </View>
@@ -59,7 +60,7 @@ export function MonthCalendar({
                     <View key={c} style={[styles.dot, { backgroundColor: c }]} />
                   ))}
                 </View>
-                {list.length > 0 && <Text style={styles.count}>{list.length}</Text>}
+                {exams > 0 ? <Text style={styles.exam}>시험</Text> : list.length > 0 && <Text style={styles.count}>{list.length}</Text>}
               </Pressable>
             );
           })}
@@ -74,6 +75,8 @@ const styles = StyleSheet.create({
   head: { flex: 1, textAlign: 'center', color: PALETTE.sub, paddingVertical: 6, fontWeight: '600' },
   weekend: { color: '#DC2626' },
   cell: { flex: 1, minHeight: 58, alignItems: 'center', paddingVertical: 4, borderRadius: 10, gap: 2 },
+  cellExam: { borderWidth: 2, borderColor: EXAM_COLOR },
+  exam: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', backgroundColor: EXAM_COLOR, paddingHorizontal: 4, borderRadius: 4, overflow: 'hidden' },
   cellOn: { backgroundColor: PALETTE.tint },
   out: { backgroundColor: '#F3F4F6' },
   num: { minWidth: 28, minHeight: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

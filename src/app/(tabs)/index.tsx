@@ -12,6 +12,7 @@ import { OccurrenceRow } from '@/components/OccurrenceRow';
 import { Columns, Screen } from '@/components/Screen';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TodoCard } from '@/components/TodoCard';
+import { UpcomingExams } from '@/components/UpcomingExams';
 import { formatDate, nowLocal, today } from '@/domain/dates';
 import { findConflicts, visibleFor } from '@/domain/schedule';
 import { type Academy, memberById, type MemberId, MEMBERS, WEEKDAY_LABELS } from '@/domain/types';
@@ -121,6 +122,7 @@ export default function HomeScreen() {
               </Card.Actions>
             </Card>
           )}
+          <UpcomingExams who={isChild ? (settings.memberId as MemberId) : 'all'} />
           {!isChild && <TodoCard />}
           <Columns flex={[1.5, 1]}>
             {[

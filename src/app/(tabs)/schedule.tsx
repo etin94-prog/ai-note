@@ -12,6 +12,7 @@ import { OccurrenceDetail } from '@/components/OccurrenceDetail';
 import { OccurrenceRow } from '@/components/OccurrenceRow';
 import { Screen, SplitView } from '@/components/Screen';
 import { TimeGrid } from '@/components/TimeGrid';
+import { UpcomingExams } from '@/components/UpcomingExams';
 import { addDays, formatDate, mondayOf, today } from '@/domain/dates';
 import { monthGrid } from '@/domain/insights';
 import { addMonths } from '@/domain/money';
@@ -129,6 +130,7 @@ export default function ScheduleScreen() {
 
   const body = (
     <>
+      <UpcomingExams who={who} onSelect={onSelect} />
       <View style={wide ? styles.toolbarWide : undefined}>
         <SegmentedButtons
           style={wide ? styles.segWide : undefined}

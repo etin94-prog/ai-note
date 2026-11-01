@@ -5,7 +5,7 @@ import { Text } from 'react-native-paper';
 import { today, weekdayOf } from '@/domain/dates';
 import { layoutLanes } from '@/domain/layout';
 import type { Occurrence } from '@/domain/schedule';
-import { memberById, WEEKDAY_LABELS } from '@/domain/types';
+import { EXAM_COLOR, isExamKind, memberById, WEEKDAY_LABELS } from '@/domain/types';
 
 const HOUR_H = 72;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -89,7 +89,8 @@ export function TimeGrid({
               const dayOcc = occurrences.filter((o) => o.date === d);
               const lanes = layoutLanes(dayOcc);
               return dayOcc.map((o) => {
-                const color = memberById(o.targets[0])?.color ?? '#6B7280';
+                const exam = isExamKind(o.kind);
+                const color = exam ? EXAM_COLOR : (memberById(o.targets[0])?.color ?? '#6B7280');
                 const top = ((toMin(o.start) - fromH * 60) / 60) * hourHeight;
                 const height = Math.max(18, ((toMin(o.end) - toMin(o.start)) / 60) * hourHeight - 2);
                 const { lane, lanes: n } = lanes.get(o.key) ?? { lane: 0, lanes: 1 };
@@ -98,7 +99,7 @@ export function TimeGrid({
                     key={o.key}
                     testID="timetable-block"
                     accessibilityRole="button"
-                    accessibilityLabel={`${o.title} ${o.start}~${o.end}`}
+                    accessibilityLabel={`${exam ? '시험 ' : ''}${o.title} ${o.start}~${o.end}`}
                     onPress={() => (onSelect ? onSelect(o.key) : router.push({ pathname: '/occurrence', params: { key: o.key } }))}
                     accessibilityState={{ selected: o.key === selectedKey }}
                     style={({ pressed }) => [
@@ -111,12 +112,15 @@ export function TimeGrid({
                         backgroundColor: `${color}26`,
                         borderLeftColor: color,
                       },
+                      exam && styles.exam,
                       o.status !== 'normal' && styles.off,
                       o.key === selectedKey && styles.sel,
                       pressed && { backgroundColor: '#DBEAFE' },
                     ]}>
                     {/* 제목(과목·선생님 또는 학원) → 학원·과정 → 시간. 칸 높이만큼 보이고 넘치면 잘림 */}
-                    <Text style={[styles.blockTitle, big && styles.blockTitleBig, o.status !== 'normal' && styles.strike]}>{o.title}</Text>
+                    <Text style={[styles.blockTitle, big && styles.blockTitleBig, exam && styles.examTitle, o.status !== 'normal' && styles.strike]}>
+                      {exam ? `📝 ${o.title}` : o.title}
+                    </Text>
                     {o.subtitle && height >= 40 ? <Text style={[styles.blockSub, big && styles.blockSubBig]}>{o.subtitle}</Text> : null}
                     {height >= 56 && <Text style={[styles.blockTime, big && styles.blockSubBig]}>{`${o.start}~​${o.end}`}</Text>}
                   </Pressable>
@@ -150,6 +154,8 @@ const styles = StyleSheet.create({
   slotHover: { backgroundColor: '#2563EB14' },
   block: { position: 'absolute', borderLeftWidth: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF', borderRadius: 4, paddingHorizontal: 3, paddingTop: 2, overflow: 'hidden' },
   off: { backgroundColor: '#F3F4F6' },
+  exam: { borderLeftWidth: 5, borderWidth: 1, borderColor: EXAM_COLOR },
+  examTitle: { color: EXAM_COLOR, fontWeight: '800' },
   sel: { borderColor: '#2563EB', borderWidth: 2 },
   strike: { textDecorationLine: 'line-through' },
 });

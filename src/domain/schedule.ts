@@ -164,6 +164,8 @@ export function findConflicts(occ: Occurrence[]): Set<string> {
       const a = active[i];
       const b = active[j];
       if (b.startAt >= a.endAt) continue;
+      // 시험은 보통 수업 시간 안에 보므로 겹침으로 치지 않음
+      if (a.kind === 'exam' || b.kind === 'exam') continue;
       if (a.targets.some((t) => b.targets.includes(t)) && a.startAt < b.endAt && b.startAt < a.endAt) {
         conflicts.add(a.key);
         conflicts.add(b.key);

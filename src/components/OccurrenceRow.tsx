@@ -4,7 +4,7 @@ import { List, Text } from 'react-native-paper';
 
 import { formatDate } from '@/domain/dates';
 import type { Occurrence } from '@/domain/schedule';
-import { EVENT_KIND_LABELS, exceptionLabel, memberById } from '@/domain/types';
+import { EVENT_KIND_LABELS, EXAM_COLOR, exceptionLabel, isExamKind, memberById } from '@/domain/types';
 import { PALETTE } from '@/lib/theme';
 
 import { MemberDots } from './MemberChips';
@@ -21,6 +21,7 @@ interface Props {
 /** 일정 한 줄. 누르면 회차 상세(휴강·결석·준비물·지도). 상태는 색+글자 (X-10) */
 export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: Props) {
   const off = occ.status !== 'normal';
+  const exam = isExamKind(occ.kind) && !off;
   const who = occ.targets.map((t) => memberById(t)?.name).join('·');
   const done = occ.checklist.length ? ` · 준비물 ${occ.checked.length}/${occ.checklist.length}` : '';
   return (
@@ -30,9 +31,10 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: P
       titleNumberOfLines={0}
       descriptionNumberOfLines={0}
       onPress={() => (onSelect ? onSelect(occ.key) : router.push({ pathname: '/occurrence', params: { key: occ.key } }))}
-      style={[styles.item, selected && styles.selected]}
+      style={[styles.item, exam && styles.exam, selected && styles.selected]}
       title={
-        <Text style={[styles.title, off && styles.off]}>
+        <Text style={[styles.title, exam && styles.examTitle, off && styles.off]}>
+          {exam ? '📝 ' : ''}
           {occ.title}
           {occ.subtitle ? <Text style={styles.sub}> {occ.subtitle}</Text> : null}
         </Text>
@@ -48,6 +50,7 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: P
         <View style={styles.right}>
           <MemberDots ids={occ.targets} />
           {off && <Text style={styles.badgeOff}>{exceptionLabel(occ.kind, occ.status as 'cancelled')}</Text>}
+          {exam && <Text style={styles.badgeExam}>시험</Text>}
           {conflict && !off && <Text style={styles.badgeWarn}>겹침</Text>}
         </View>
       )}
@@ -58,6 +61,8 @@ export function OccurrenceRow({ occ, conflict, onSelect, selected, showDate }: P
 const styles = StyleSheet.create({
   item: { paddingVertical: 8, minHeight: 72 },
   selected: { backgroundColor: '#EFF6FF' },
+  exam: { backgroundColor: '#FEF2F2', borderLeftWidth: 4, borderLeftColor: EXAM_COLOR },
+  examTitle: { color: EXAM_COLOR, fontWeight: '700' },
   left: { width: 48, alignItems: 'center', justifyContent: 'center' },
   time: { fontWeight: '700', fontSize: 15, fontVariant: ['tabular-nums'] },
   end: { fontSize: 14, color: PALETTE.sub, fontVariant: ['tabular-nums'] },
@@ -66,5 +71,6 @@ const styles = StyleSheet.create({
   off: { textDecorationLine: 'line-through', opacity: 0.5 },
   right: { alignItems: 'flex-end', justifyContent: 'center', gap: 4 },
   badgeOff: { fontSize: 12, color: '#6B7280', fontWeight: '700' },
+  badgeExam: { fontSize: 12, color: '#FFFFFF', backgroundColor: EXAM_COLOR, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, overflow: 'hidden' },
   badgeWarn: { fontSize: 12, color: '#DC2626', fontWeight: '700' },
 });

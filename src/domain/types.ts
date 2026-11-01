@@ -80,10 +80,11 @@ export interface Enrollment {
   status: 'active' | 'paused' | 'ended';
 }
 
-export type EventKind = 'class' | 'makeup' | 'school' | 'meeting' | 'appointment' | 'consult' | 'family' | 'etc';
+export type EventKind = 'class' | 'makeup' | 'exam' | 'school' | 'meeting' | 'appointment' | 'consult' | 'family' | 'etc';
 export const EVENT_KIND_LABELS: Record<EventKind, string> = {
   class: '학원 수업',
   makeup: '보강',
+  exam: '시험',
   school: '등하교',
   meeting: '모임',
   appointment: '약속',
@@ -122,6 +123,9 @@ export const EXCEPTION_LABELS: Record<ExceptionStatus, string> = { cancelled: '�
 
 /** 학원 수업·보강은 휴강/결석, 그 외 일정은 '취소' 하나로 표시 */
 export const isClassKind = (kind: EventKind) => kind === 'class' || kind === 'makeup';
+/** 시험·평가 — 일정 화면에서 빨간색으로 눈에 띄게, 같은 시간 수업과 겹쳐도 '겹침' 아님 */
+export const isExamKind = (kind: EventKind) => kind === 'exam';
+export const EXAM_COLOR = '#DC2626';
 export const exceptionLabel = (kind: EventKind, status: ExceptionStatus) =>
   isClassKind(kind) ? EXCEPTION_LABELS[status] : '취소';
 
